@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react'
-const NW=120,NH=50,HG=40,VG=80
+const NW=120,NH=50,HG=40,VG=80,SPG=20
 const MIN_SCALE=0.3,MAX_SCALE=3
 export default function FamilyTree({people,relationships,selectedId,onSelect}){
   const [pan,setPan]=useState({x:0,y:0})
@@ -79,25 +79,58 @@ function buildLayout(people,relationships){
       if(!spouseOf[r.person2_id])spouseOf[r.person2_id]=[];spouseOf[r.person2_id].push(r.person1_id)
     }
   }
-  const gen={},visited=new Set()
-  const ag=(id,g)=>{if(visited.has(id))return;visited.add(id);gen[id]=g;(parentOf[id]||[]).forEach(c=>ag(c,g+1));(spouseOf[id]||[]).forEach(s=>{if(!visited.has(s))ag(s,g)})}
+  const byId={};people.forEach(p=>{byId[p.id]=p})
   const allIds=people.map(p=>p.id)
-  const roots=allIds.filter(id=>!childOf[id]||!childOf[id].length)
-  ;(roots.length?roots:[allIds[0]]).forEach(r=>ag(r,0))
-  allIds.forEach(id=>{if(gen[id]===undefined)gen[id]=0})
-  const byGen={}
-  allIds.forEach(id=>{const g=gen[id]??0;if(!byGen[g])byGen[g]=[];byGen[g].push(id)})
-  const nodes=[]
-  Object.keys(byGen).map(Number).sort((a,b)=>a-b).forEach((g,gi)=>{
-    const ids=byGen[g],tw=ids.length*NW+(ids.length-1)*HG
-    ids.forEach((id,i)=>nodes.push({id,x:-tw/2+i*(NW+HG)+NW/2,y:gi*(NH+VG)}))
-  })
+  const byBirth=(a,b)=>((byId[a]?.birth_year??9999)-(byId[b]?.birth_year??9999))||a-b
+  // Blood line = the eldest parentless ancestor and their descendants; everyone else married in.
+  const rootId=allIds.filter(id=>!childOf[id]?.length&&parentOf[id]?.length).sort(byBirth)[0]??allIds[0]
+  const blood=new Set()
+  for(const stack=[rootId];stack.length;){
+    const id=stack.pop()
+    if(blood.has(id))continue
+    blood.add(id);(parentOf[id]||[]).forEach(c=>stack.push(c))
+  }
+  // Each child is laid out under exactly one parent so it is never placed twice.
+  const kidsFor=id=>[...new Set(parentOf[id]||[])].filter(c=>{
+    const bp=(childOf[c]||[]).filter(p=>blood.has(p)).sort((a,b)=>a-b)
+    return blood.has(c)&&(bp.length?bp[0]:(childOf[c]||[]).slice().sort((a,b)=>a-b)[0])===id
+  }).sort(byBirth)
+  const spousesFor=id=>[...new Set(spouseOf[id]||[])].filter(s=>!blood.has(s)).sort(byBirth)
+  const unitW=id=>{const n=spousesFor(id).length;return (n+1)*NW+n*SPG}
+  const width={},seen=new Set()
+  const measure=id=>{
+    if(seen.has(id))return width[id]=unitW(id)
+    seen.add(id)
+    const kids=kidsFor(id)
+    const kw=kids.length?kids.reduce((s,k)=>s+measure(k),0)+(kids.length-1)*HG:0
+    return width[id]=Math.max(unitW(id),kw)
+  }
+  const nodes=[],done=new Set()
+  const place=(id,left,depth)=>{
+    if(done.has(id))return
+    done.add(id)
+    const sp=spousesFor(id),uw=unitW(id),kids=kidsFor(id)
+    const kw=kids.length?kids.reduce((s,k)=>s+width[k],0)+(kids.length-1)*HG:0
+    const y=depth*(NH+VG),uL=left+(width[id]-uw)/2
+    nodes.push({id,x:uL+NW/2,y})
+    sp.forEach((s,i)=>nodes.push({id:s,x:uL+(i+1)*(NW+SPG)+NW/2,y}))
+    let cx=left+(width[id]-kw)/2
+    kids.forEach(k=>{place(k,cx,depth+1);cx+=width[k]+HG})
+  }
+  measure(rootId)
+  place(rootId,-width[rootId]/2,0)
+  const stray=allIds.filter(id=>!nodes.some(n=>n.id===id))
+  if(stray.length){
+    const sy=Math.max(...nodes.map(n=>n.y))+NH+VG,sw=stray.length*NW+(stray.length-1)*HG
+    stray.forEach((id,i)=>nodes.push({id,x:-sw/2+i*(NW+HG)+NW/2,y:sy}))
+  }
   const pm={};nodes.forEach(n=>{pm[n.id]=n})
   const edges=[]
   for(const r of relationships){
     if(r.type==='parent')continue
     const a=pm[r.person1_id],b=pm[r.person2_id];if(!a||!b)continue
-    edges.push({x1:a.x+NW/2,y1:a.y,x2:b.x-NW/2,y2:b.y,type:'spouse'})
+    const[l,rt]=a.x<=b.x?[a,b]:[b,a]
+    edges.push({x1:l.x+NW/2,y1:l.y,x2:rt.x-NW/2,y2:rt.y,type:'spouse'})
   }
   const families={}
   Object.keys(childOf).forEach(childId=>{
