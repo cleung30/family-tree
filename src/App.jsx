@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import FamilyTree, { speak } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
@@ -10,6 +10,34 @@ export default function App() {
   const [modalMode, setModalMode] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [focusRequest, setFocusRequest] = useState(null)
+  const searchWrapRef = useRef(null)
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    return people.filter(p =>
+      `${p.first_name} ${p.last_name}`.toLowerCase().includes(q) ||
+      (p.chinese_name || '').includes(searchQuery.trim())
+    ).slice(0, 8)
+  }, [searchQuery, people])
+
+  const selectResult = (p) => {
+    setSelected(p)
+    setFocusRequest({ id: p.id, ts: Date.now() })
+    setSearchQuery('')
+    setDropdownOpen(false)
+  }
+
+  useEffect(() => {
+    const onDocMouseDown = (e) => {
+      if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setDropdownOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    return () => document.removeEventListener('mousedown', onDocMouseDown)
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -48,17 +76,40 @@ export default function App() {
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
-      <header style={{background:'#6b3a1f',color:'#fff',padding:'12px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-        <div>
-          <h1 style={{fontSize:20,fontWeight:700}}>Leung Family Tree</h1>
+      <header style={{background:'#6b3a1f',color:'#fff',padding:'12px 20px',display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,flexShrink:0}}>
+        <div style={{flexShrink:0}}>
+          <h1 style={{fontSize:20,fontWeight:700,whiteSpace:'nowrap'}}>Leung Family Tree</h1>
           <p style={{fontSize:12,opacity:0.7}}>{people.length} members</p>
         </div>
-        <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f'}}>+ Add Member</button>
+        <div ref={searchWrapRef} style={{position:'relative',flex:'1 1 200px',minWidth:140}}>
+          <input
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setDropdownOpen(true) }}
+            onFocus={() => { if (searchQuery.trim()) setDropdownOpen(true) }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') { setSearchQuery(''); setDropdownOpen(false) }
+              else if (e.key === 'Enter' && searchResults.length) selectResult(searchResults[0])
+            }}
+            placeholder="Search family members…"
+            style={{width:'100%',padding:'8px 12px',borderRadius:6,border:'none',fontSize:14,color:'#1f2937'}}
+          />
+          {dropdownOpen && searchQuery.trim() && (
+            <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,right:0,background:'#fff',borderRadius:6,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',overflow:'hidden',overflowY:'auto',maxHeight:280,zIndex:20}}>
+              {searchResults.length ? searchResults.map(p => (
+                <div key={p.id} onMouseDown={() => selectResult(p)} style={{padding:'8px 12px',cursor:'pointer',color:'#1f2937',fontSize:14,borderBottom:'1px solid #f3f4f6'}}>
+                  <div style={{fontWeight:600}}>{p.first_name} {p.last_name}</div>
+                  {(p.chinese_name || p.birth_year) && <div style={{fontSize:12,color:'#888'}}>{[p.chinese_name, p.birth_year ? `b.${p.birth_year}` : null].filter(Boolean).join(' · ')}</div>}
+                </div>
+              )) : <div style={{padding:'8px 12px',color:'#9ca3af',fontSize:14}}>No matches</div>}
+            </div>
+          )}
+        </div>
+        <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>
       </header>
       <div style={{flex:1,overflow:'hidden',position:'relative'}}>
-        <FamilyTree people={people} relationships={relationships} selectedId={selected?.id} onSelect={setSelected} />
+        <FamilyTree people={people} relationships={relationships} selectedId={selected?.id} onSelect={setSelected} focusRequest={focusRequest} />
         {selected && (
-          <div style={{position:'absolute',top:0,right:0,width:280,height:'100%',background:'#fff',borderLeft:'1px solid #e5e7eb',padding:20,overflowY:'auto',boxShadow:'-4px 0 12px rgba(0,0,0,0.08)'}}>
+          <div style={{position:'absolute',top:0,right:0,width:'min(280px, 88vw)',height:'100%',background:'#fff',borderLeft:'1px solid #e5e7eb',padding:20,overflowY:'auto',boxShadow:'-4px 0 12px rgba(0,0,0,0.08)'}}>
             <button onClick={() => setSelected(null)} style={{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:18,color:'#888'}}>✕</button>
             {selected.photo_base64 && <img src={selected.photo_base64} alt="" style={{width:80,height:80,borderRadius:'50%',objectFit:'cover',display:'block',margin:'0 auto 12px'}} />}
             <h2 style={{fontSize:18,fontWeight:700,textAlign:'center'}}>{selected.first_name} {selected.last_name}</h2>

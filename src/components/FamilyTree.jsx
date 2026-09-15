@@ -1,17 +1,54 @@
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState, useRef, useEffect, useLayoutEffect } from 'react'
 const NW=120,NH=50,HG=40,VG=80,SPG=20
 const MIN_SCALE=0.3,MAX_SCALE=3
-export default function FamilyTree({people,relationships,selectedId,onSelect}){
+export default function FamilyTree({people,relationships,selectedId,onSelect,focusRequest}){
   const [pan,setPan]=useState({x:0,y:0})
   const [drag,setDrag]=useState(null)
   const [scale,setScale]=useState(1)
   const svgRef=useRef(null)
+  const fittedRef=useRef(false)
+  const interactedRef=useRef(false)
   const {nodes,edges}=useMemo(()=>buildLayout(people,relationships),[people,relationships])
+  const fitToView=()=>{
+    const el=svgRef.current
+    if(!el||!nodes.length)return
+    const rect=el.getBoundingClientRect()
+    if(!rect.width||!rect.height)return
+    const minX=Math.min(...nodes.map(n=>n.x))-NW/2
+    const maxX=Math.max(...nodes.map(n=>n.x))+NW/2
+    const minY=Math.min(...nodes.map(n=>n.y))-NH/2
+    const s=Math.min(1,Math.max(0.35,(rect.width*0.9)/(maxX-minX)))
+    setScale(s)
+    setPan({x:rect.width/2-((minX+maxX)/2)*s,y:36-minY*s})
+  }
+  useLayoutEffect(()=>{
+    if(!fittedRef.current){fitToView();fittedRef.current=true}
+  },[nodes])
+  useEffect(()=>{
+    const onResize=()=>{if(!interactedRef.current)fitToView()}
+    window.addEventListener('resize',onResize)
+    return ()=>window.removeEventListener('resize',onResize)
+  },[nodes])
+  useEffect(()=>{
+    if(!focusRequest)return
+    const n=nodes.find(n=>n.id===focusRequest.id)
+    const el=svgRef.current
+    if(!n||!el)return
+    const rect=el.getBoundingClientRect()
+    const sidebarW=Math.min(280,rect.width*0.88)
+    interactedRef.current=true
+    setScale(prev=>{
+      const s=Math.max(prev,0.8)
+      setPan({x:(rect.width-sidebarW)/2-n.x*s,y:rect.height/2-n.y*s})
+      return s
+    })
+  },[focusRequest])
   useEffect(()=>{
     const el=svgRef.current
     if(!el)return
     const onWheel=e=>{
       e.preventDefault()
+      interactedRef.current=true
       const rect=el.getBoundingClientRect()
       const cx=e.clientX-rect.left, cy=e.clientY-rect.top
       const raw=e.deltaMode===1?e.deltaY*16:e.deltaMode===2?e.deltaY*800:e.deltaY
@@ -22,8 +59,8 @@ export default function FamilyTree({people,relationships,selectedId,onSelect}){
         const applied=newScale/prevScale
         if(applied!==1){
           setPan(prevPan=>({
-            x:cx-400-(cx-prevPan.x-400)*applied,
-            y:cy-60-(cy-prevPan.y-60)*applied,
+            x:cx-(cx-prevPan.x)*applied,
+            y:cy-(cy-prevPan.y)*applied,
           }))
         }
         return newScale
@@ -33,15 +70,15 @@ export default function FamilyTree({people,relationships,selectedId,onSelect}){
     return ()=>el.removeEventListener('wheel',onWheel)
   },[])
   if(!people.length)return<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#9ca3af',fontSize:16}}>No family members yet. Click "+ Add Member" to start.</div>
-  const onMD=e=>{if(e.target.closest('.tn'))return;setDrag({sx:e.clientX-pan.x,sy:e.clientY-pan.y})}
+  const onMD=e=>{if(e.target.closest('.tn'))return;interactedRef.current=true;setDrag({sx:e.clientX-pan.x,sy:e.clientY-pan.y})}
   const onMM=e=>{if(!drag)return;setPan({x:e.clientX-drag.sx,y:e.clientY-drag.sy})}
   const onMU=()=>setDrag(null)
-  const onTS=e=>{if(e.target.closest('.tn')||e.touches.length!==1)return;const t=e.touches[0];setDrag({sx:t.clientX-pan.x,sy:t.clientY-pan.y})}
+  const onTS=e=>{if(e.target.closest('.tn')||e.touches.length!==1)return;interactedRef.current=true;const t=e.touches[0];setDrag({sx:t.clientX-pan.x,sy:t.clientY-pan.y})}
   const onTM=e=>{if(!drag||e.touches.length!==1)return;const t=e.touches[0];setPan({x:t.clientX-drag.sx,y:t.clientY-drag.sy})}
   const onTE=()=>setDrag(null)
   return(
     <svg ref={svgRef} width="100%" height="100%" onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE} onTouchCancel={onTE} style={{cursor:drag?'grabbing':'grab',userSelect:'none',touchAction:'none'}}>
-      <g transform={`translate(${pan.x+400},${pan.y+60}) scale(${scale})`}>
+      <g transform={`translate(${pan.x},${pan.y}) scale(${scale})`}>
         {edges.map((e,i)=><line key={i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} stroke={e.type==='spouse'?'#f59e0b':'#6b7280'} strokeWidth={1.5} strokeDasharray={e.type==='spouse'?'5,4':undefined}/>)}
         {nodes.map(n=>{
           const p=people.find(p=>p.id===n.id);if(!p)return null
