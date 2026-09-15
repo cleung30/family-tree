@@ -16,7 +16,37 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('')
   const [confirmTarget, setConfirmTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [session, setSession] = useState(null)
+  const [isEditor, setIsEditor] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authEmail, setAuthEmail] = useState('')
+  const [authSending, setAuthSending] = useState(false)
+  const [authSent, setAuthSent] = useState(false)
+  const [authError, setAuthError] = useState('')
   const searchWrapRef = useRef(null)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => setSession(sess))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!session) { setIsEditor(false); return }
+    supabase.from('editors').select('email').eq('email', session.user.email).maybeSingle()
+      .then(({ data }) => setIsEditor(!!data))
+  }, [session])
+
+  const openAuth = () => { setAuthOpen(true); setAuthSent(false); setAuthEmail(''); setAuthError('') }
+  const sendMagicLink = async () => {
+    if (!authEmail.trim()) return setAuthError('Enter your email')
+    setAuthSending(true); setAuthError('')
+    const { error } = await supabase.auth.signInWithOtp({ email: authEmail.trim(), options: { emailRedirectTo: window.location.origin } })
+    setAuthSending(false)
+    if (error) return setAuthError(error.message)
+    setAuthSent(true)
+  }
+  const signOut = async () => { await supabase.auth.signOut(); setSelected(null); setModalMode(null) }
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -133,7 +163,12 @@ export default function App() {
           )}
         </div>
         <button onClick={exportData} title="Download a backup of all family data as JSON" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>⬇ Export</button>
-        <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>
+        {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>}
+        {session ? (
+          <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
+        ) : (
+          <button onClick={openAuth} style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>Sign in to edit</button>
+        )}
       </header>
       {errorMsg && (
         <div style={{background:'#fee2e2',color:'#991b1b',padding:'10px 20px',fontSize:14,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexShrink:0}}>
@@ -159,10 +194,12 @@ export default function App() {
               {selected.gender && <Info label="Gender" value={{m:'Male',f:'Female',o:'Other'}[selected.gender]||selected.gender} />}
               {selected.notes && <Info label="Notes" value={selected.notes} />}
             </div>
-            <div style={{marginTop:20,display:'flex',gap:8}}>
-              <button onClick={() => setModalMode('edit')} style={{...btn,flex:1}}>Edit</button>
-              <button onClick={() => setConfirmTarget(selected)} style={{...btn,flex:1,background:'#dc2626'}}>Delete</button>
-            </div>
+            {isEditor && (
+              <div style={{marginTop:20,display:'flex',gap:8}}>
+                <button onClick={() => setModalMode('edit')} style={{...btn,flex:1}}>Edit</button>
+                <button onClick={() => setConfirmTarget(selected)} style={{...btn,flex:1,background:'#dc2626'}}>Delete</button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -183,6 +220,31 @@ export default function App() {
               <button onClick={() => setConfirmTarget(null)} disabled={deleting} style={{...btn,background:'#f3f4f6',color:'#374151',opacity:deleting?.6:1}}>Cancel</button>
               <button onClick={confirmDelete} disabled={deleting} style={{...btn,background:'#dc2626',opacity:deleting?.6:1}}>{deleting?'Deleting…':'Delete'}</button>
             </div>
+          </div>
+        </div>
+      )}
+      {authOpen && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && setAuthOpen(false)}>
+          <div style={{background:'#fff',borderRadius:12,width:'min(360px, 90vw)',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+            <h2 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Sign in to edit</h2>
+            {authSent ? (
+              <>
+                <p style={{fontSize:14,color:'#6b7280',marginBottom:20}}>Check <strong>{authEmail}</strong> for a sign-in link.</p>
+                <div style={{display:'flex',justifyContent:'flex-end'}}>
+                  <button onClick={() => setAuthOpen(false)} style={{...btn,background:'#f3f4f6',color:'#374151'}}>Close</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{fontSize:14,color:'#6b7280',marginBottom:12}}>Only people on the family editor list can make changes. Everyone else can still browse the tree.</p>
+                <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && sendMagicLink()} placeholder="you@example.com" style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,marginBottom:8}} autoFocus />
+                {authError && <div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6,marginBottom:8}}>{authError}</div>}
+                <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                  <button onClick={() => setAuthOpen(false)} disabled={authSending} style={{...btn,background:'#f3f4f6',color:'#374151',opacity:authSending?.6:1}}>Cancel</button>
+                  <button onClick={sendMagicLink} disabled={authSending} style={{...btn,opacity:authSending?.6:1}}>{authSending?'Sending…':'Send magic link'}</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
