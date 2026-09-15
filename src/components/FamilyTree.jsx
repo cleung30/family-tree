@@ -47,7 +47,7 @@ export default function FamilyTree({people,relationships,selectedId,onSelect}){
           const p=people.find(p=>p.id===n.id);if(!p)return null
           const sel=p.id===selectedId
           return(
-            <g key={n.id} className="tn" transform={`translate(${n.x},${n.y})`} onClick={()=>{onSelect(p);speak(p)}} style={{cursor:'pointer'}}>
+            <g key={n.id} className="tn" transform={`translate(${n.x},${n.y})`} onClick={()=>onSelect(p)} style={{cursor:'pointer'}}>
               <rect x={-NW/2} y={-NH/2} width={NW} height={NH} rx={8}
                 fill={sel?'#6b3a1f':p.gender==='f'?'#fce7f3':p.gender==='m'?'#dbeafe':'#f3f4f6'}
                 stroke={sel?'#6b3a1f':'#d1d5db'} strokeWidth={sel?2:1}/>
@@ -60,7 +60,7 @@ export default function FamilyTree({people,relationships,selectedId,onSelect}){
     </svg>
   )
 }
-function speak(p){
+export function speak(p){
   if(!('speechSynthesis' in window))return
   window.speechSynthesis.cancel()
   window.speechSynthesis.speak(new SpeechSynthesisUtterance(`${p.first_name} ${p.last_name}`))

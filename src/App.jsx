@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
-import FamilyTree from './components/FamilyTree'
+import FamilyTree, { speak } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 
 export default function App() {
@@ -63,6 +63,9 @@ export default function App() {
             {selected.photo_base64 && <img src={selected.photo_base64} alt="" style={{width:80,height:80,borderRadius:'50%',objectFit:'cover',display:'block',margin:'0 auto 12px'}} />}
             <h2 style={{fontSize:18,fontWeight:700,textAlign:'center'}}>{selected.first_name} {selected.last_name}</h2>
             {selected.chinese_name && <p style={{textAlign:'center',color:'#888',fontSize:14}}>{selected.chinese_name}</p>}
+            <div style={{textAlign:'center',marginTop:8}}>
+              <button onClick={() => speak(selected)} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>🔊 Speak Name</button>
+            </div>
             <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:8}}>
               {selected.birth_year && <Info label="Born" value={selected.birth_year} />}
               {selected.death_year && <Info label="Died" value={selected.death_year} />}
