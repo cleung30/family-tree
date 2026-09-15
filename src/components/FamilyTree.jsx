@@ -60,10 +60,12 @@ export default function FamilyTree({people,relationships,selectedId,onSelect}){
     </svg>
   )
 }
-export function speak(p){
+export function speak(text,lang){
   if(!('speechSynthesis' in window))return
   window.speechSynthesis.cancel()
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(`${p.first_name} ${p.last_name}`))
+  const u=new SpeechSynthesisUtterance(text)
+  if(lang)u.lang=lang
+  window.speechSynthesis.speak(u)
 }
 function buildLayout(people,relationships){
   if(!people.length)return{nodes:[],edges:[]}
