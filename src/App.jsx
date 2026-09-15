@@ -18,11 +18,20 @@ export default function App() {
   const [deleting, setDeleting] = useState(false)
   const [session, setSession] = useState(null)
   const [isEditor, setIsEditor] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [authEmail, setAuthEmail] = useState('')
   const [authSending, setAuthSending] = useState(false)
   const [authSent, setAuthSent] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [editorsOpen, setEditorsOpen] = useState(false)
+  const [editorsList, setEditorsList] = useState([])
+  const [editorsLoading, setEditorsLoading] = useState(false)
+  const [editorsError, setEditorsError] = useState('')
+  const [newEditorEmail, setNewEditorEmail] = useState('')
+  const [newEditorRole, setNewEditorRole] = useState('editor')
+  const [invitingEditor, setInvitingEditor] = useState(false)
+  const [removingEditorEmail, setRemovingEditorEmail] = useState(null)
   const searchWrapRef = useRef(null)
 
   useEffect(() => {
@@ -32,9 +41,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!session) { setIsEditor(false); return }
-    supabase.from('editors').select('email').eq('email', session.user.email).maybeSingle()
-      .then(({ data }) => setIsEditor(!!data))
+    if (!session) { setIsEditor(false); setIsAdmin(false); return }
+    supabase.from('editors').select('role').eq('email', session.user.email).maybeSingle()
+      .then(({ data }) => { setIsEditor(!!data); setIsAdmin(data?.role === 'admin') })
   }, [session])
 
   const openAuth = () => { setAuthOpen(true); setAuthSent(false); setAuthEmail(''); setAuthError('') }
@@ -47,6 +56,34 @@ export default function App() {
     setAuthSent(true)
   }
   const signOut = async () => { await supabase.auth.signOut(); setSelected(null); setModalMode(null) }
+
+  const openEditors = async () => {
+    setEditorsOpen(true); setEditorsError(''); setNewEditorEmail(''); setNewEditorRole('editor')
+    setEditorsLoading(true)
+    const { data, error } = await supabase.from('editors').select('email, role').order('email')
+    setEditorsLoading(false)
+    if (error) return setEditorsError(error.message)
+    setEditorsList(data || [])
+  }
+  const inviteEditor = async () => {
+    const email = newEditorEmail.trim().toLowerCase()
+    if (!email) return setEditorsError('Enter an email address')
+    if (editorsList.some(e => e.email === email)) return setEditorsError('That email is already on the list')
+    setInvitingEditor(true); setEditorsError('')
+    const { data, error } = await supabase.from('editors').insert([{ email, role: newEditorRole }]).select().single()
+    setInvitingEditor(false)
+    if (error) return setEditorsError(error.message)
+    setEditorsList(list => [...list, data].sort((a, b) => a.email.localeCompare(b.email)))
+    setNewEditorEmail('')
+  }
+  const removeEditor = async (email) => {
+    if (email === session?.user.email) return setEditorsError("You can't remove yourself")
+    setRemovingEditorEmail(email); setEditorsError('')
+    const { error } = await supabase.from('editors').delete().eq('email', email)
+    setRemovingEditorEmail(null)
+    if (error) return setEditorsError(error.message)
+    setEditorsList(list => list.filter(e => e.email !== email))
+  }
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -164,6 +201,7 @@ export default function App() {
         </div>
         <button onClick={exportData} title="Download a backup of all family data as JSON" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>⬇ Export</button>
         {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>}
+        {isAdmin && <button onClick={openEditors} style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
         {session ? (
           <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
         ) : (
@@ -245,6 +283,41 @@ export default function App() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {editorsOpen && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && setEditorsOpen(false)}>
+          <div style={{background:'#fff',borderRadius:12,width:'min(420px, 90vw)',maxHeight:'85vh',overflowY:'auto',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+              <h2 style={{fontSize:16,fontWeight:700}}>Manage Editors</h2>
+              <button onClick={() => setEditorsOpen(false)} style={{background:'none',border:'none',fontSize:20,color:'#6b7280',cursor:'pointer'}}>✕</button>
+            </div>
+            <p style={{fontSize:13,color:'#6b7280',marginBottom:12}}>Admins can add and remove people from the tree, plus invite or revoke other editors/admins. Editors can add and remove people but can't manage who else has access.</p>
+            {editorsLoading ? (
+              <p style={{fontSize:14,color:'#9ca3af'}}>Loading…</p>
+            ) : (
+              <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+                {editorsList.map(e => (
+                  <div key={e.email} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',background:'#f9fafb',borderRadius:6}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600}}>{e.email}</div>
+                      <div style={{fontSize:11,color:'#8a5a3a',textTransform:'uppercase',fontWeight:700}}>{e.role}</div>
+                    </div>
+                    <button onClick={() => removeEditor(e.email)} disabled={removingEditorEmail===e.email || e.email===session?.user.email} title={e.email===session?.user.email?"You can't remove yourself":'Revoke access'} style={{background:'none',border:'none',color:'#dc2626',fontSize:12,cursor:'pointer',opacity:(removingEditorEmail===e.email||e.email===session?.user.email)?.4:1}}>{removingEditorEmail===e.email?'Removing…':'Remove'}</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {editorsError && <div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6,marginBottom:8}}>{editorsError}</div>}
+            <div style={{display:'flex',gap:8,borderTop:'1px solid #e5e7eb',paddingTop:12}}>
+              <input type="email" value={newEditorEmail} onChange={e => setNewEditorEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && inviteEditor()} placeholder="new-editor@example.com" style={{flex:1,padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}} />
+              <select value={newEditorRole} onChange={e => setNewEditorRole(e.target.value)} style={{padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}}>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button onClick={inviteEditor} disabled={invitingEditor} style={{...btn,flexShrink:0,opacity:invitingEditor?.6:1}}>{invitingEditor?'Adding…':'Invite'}</button>
+            </div>
           </div>
         </div>
       )}
