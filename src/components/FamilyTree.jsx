@@ -36,8 +36,11 @@ export default function FamilyTree({people,relationships,selectedId,onSelect}){
   const onMD=e=>{if(e.target.closest('.tn'))return;setDrag({sx:e.clientX-pan.x,sy:e.clientY-pan.y})}
   const onMM=e=>{if(!drag)return;setPan({x:e.clientX-drag.sx,y:e.clientY-drag.sy})}
   const onMU=()=>setDrag(null)
+  const onTS=e=>{if(e.target.closest('.tn')||e.touches.length!==1)return;const t=e.touches[0];setDrag({sx:t.clientX-pan.x,sy:t.clientY-pan.y})}
+  const onTM=e=>{if(!drag||e.touches.length!==1)return;const t=e.touches[0];setPan({x:t.clientX-drag.sx,y:t.clientY-drag.sy})}
+  const onTE=()=>setDrag(null)
   return(
-    <svg ref={svgRef} width="100%" height="100%" onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} style={{cursor:drag?'grabbing':'grab',userSelect:'none'}}>
+    <svg ref={svgRef} width="100%" height="100%" onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE} onTouchCancel={onTE} style={{cursor:drag?'grabbing':'grab',userSelect:'none',touchAction:'none'}}>
       <g transform={`translate(${pan.x+400},${pan.y+60}) scale(${scale})`}>
         {edges.map((e,i)=><line key={i} x1={e.x1} y1={e.y1} x2={e.x2} y2={e.y2} stroke={e.type==='spouse'?'#f59e0b':'#6b7280'} strokeWidth={1.5} strokeDasharray={e.type==='spouse'?'5,4':undefined}/>)}
         {nodes.map(n=>{
