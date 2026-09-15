@@ -13,6 +13,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [focusRequest, setFocusRequest] = useState(null)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [confirmTarget, setConfirmTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
   const searchWrapRef = useRef(null)
 
   const searchResults = useMemo(() => {
@@ -56,18 +59,30 @@ export default function App() {
   const handleSave = async (data) => {
     if (modalMode === 'add') {
       const { error } = await supabase.from('people').insert([data])
-      if (error) return alert(error.message)
+      if (error) return setErrorMsg(error.message)
     } else {
       const { error } = await supabase.from('people').update(data).eq('id', selected.id)
-      if (error) return alert(error.message)
+      if (error) return setErrorMsg(error.message)
     }
     setModalMode(null); setSelected(null); load()
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this person and all their relationships?')) return
-    await supabase.from('relationships').delete().or(`person1_id.eq.${id},person2_id.eq.${id}`)
-    await supabase.from('people').delete().eq('id', id)
+  const uploadPhoto = async (file) => {
+    const ext = file.name.split('.').pop()
+    const path = `${crypto.randomUUID()}.${ext}`
+    const { error } = await supabase.storage.from('photos').upload(path, file)
+    if (error) throw error
+    return supabase.storage.from('photos').getPublicUrl(path).data.publicUrl
+  }
+
+  const confirmDelete = async () => {
+    const person = confirmTarget
+    setDeleting(true)
+    const { error: re } = await supabase.from('relationships').delete().or(`person1_id.eq.${person.id},person2_id.eq.${person.id}`)
+    const { error: pe } = re ? {} : await supabase.from('people').delete().eq('id', person.id)
+    setDeleting(false)
+    setConfirmTarget(null)
+    if (re || pe) return setErrorMsg((re || pe).message)
     setSelected(null); load()
   }
 
@@ -106,6 +121,12 @@ export default function App() {
         </div>
         <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>
       </header>
+      {errorMsg && (
+        <div style={{background:'#fee2e2',color:'#991b1b',padding:'10px 20px',fontSize:14,display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexShrink:0}}>
+          <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg('')} style={{background:'none',border:'none',color:'#991b1b',fontSize:16,cursor:'pointer',flexShrink:0}}>✕</button>
+        </div>
+      )}
       <div style={{flex:1,overflow:'hidden',position:'relative'}}>
         <FamilyTree people={people} relationships={relationships} selectedId={selected?.id} onSelect={setSelected} focusRequest={focusRequest} />
         {selected && (
@@ -126,7 +147,7 @@ export default function App() {
             </div>
             <div style={{marginTop:20,display:'flex',gap:8}}>
               <button onClick={() => setModalMode('edit')} style={{...btn,flex:1}}>Edit</button>
-              <button onClick={() => handleDelete(selected.id)} style={{...btn,flex:1,background:'#dc2626'}}>Delete</button>
+              <button onClick={() => setConfirmTarget(selected)} style={{...btn,flex:1,background:'#dc2626'}}>Delete</button>
             </div>
           </div>
         )}
@@ -134,9 +155,22 @@ export default function App() {
       {modalMode && (
         <PersonModal person={modalMode==='edit'?selected:null} people={people} relationships={relationships}
           onSave={handleSave} onClose={() => setModalMode(null)}
-          onRelationshipSave={async (rel) => { const {error}=await supabase.from('relationships').insert([rel]); if(error)alert(error.message); else load() }}
-          onRelationshipDelete={async (id) => { await supabase.from('relationships').delete().eq('id',id); load() }}
+          onUploadPhoto={uploadPhoto}
+          onRelationshipSave={async (rel) => { const {error}=await supabase.from('relationships').insert([rel]); if(error)setErrorMsg(error.message); else load() }}
+          onRelationshipDelete={async (id) => { const {error}=await supabase.from('relationships').delete().eq('id',id); if(error)setErrorMsg(error.message); else load() }}
         />
+      )}
+      {confirmTarget && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && !deleting && setConfirmTarget(null)}>
+          <div style={{background:'#fff',borderRadius:12,width:'min(360px, 90vw)',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+            <h2 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Delete {confirmTarget.first_name} {confirmTarget.last_name}?</h2>
+            <p style={{fontSize:14,color:'#6b7280',marginBottom:20}}>This removes them and all their relationships from the tree. This cannot be undone.</p>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+              <button onClick={() => setConfirmTarget(null)} disabled={deleting} style={{...btn,background:'#f3f4f6',color:'#374151',opacity:deleting?.6:1}}>Cancel</button>
+              <button onClick={confirmDelete} disabled={deleting} style={{...btn,background:'#dc2626',opacity:deleting?.6:1}}>{deleting?'Deleting…':'Delete'}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

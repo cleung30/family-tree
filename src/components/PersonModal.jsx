@@ -1,24 +1,43 @@
 import { useState, useEffect } from 'react'
-export default function PersonModal({person,people,relationships,onSave,onClose,onRelationshipSave,onRelationshipDelete}){
+export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onRelationshipSave,onRelationshipDelete}){
   const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',birth_year:'',death_year:'',gender:'m',notes:'',photo_base64:''})
   const [relType,setRelType]=useState('parent')
   const [relTarget,setRelTarget]=useState('')
   const [saving,setSaving]=useState(false)
+  const [uploading,setUploading]=useState(false)
+  const [addingRel,setAddingRel]=useState(false)
+  const [removingRelId,setRemovingRelId]=useState(null)
+  const [formError,setFormError]=useState('')
   useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_base64:person.photo_base64||''})},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
-  const handlePhoto=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>setForm(f=>({...f,photo_base64:ev.target.result}));r.readAsDataURL(f)}
+  const handlePhoto=async e=>{
+    const f=e.target.files[0];if(!f)return
+    setFormError('');setUploading(true)
+    try{
+      const url=await onUploadPhoto(f)
+      setForm(f=>({...f,photo_base64:url}))
+    }catch(err){setFormError(err.message)}
+    setUploading(false)
+  }
   const handleSave=async()=>{
-    if(!form.first_name.trim())return alert('First name is required')
-    setSaving(true)
+    if(!form.first_name.trim())return setFormError('First name is required')
+    setFormError('');setSaving(true)
     await onSave({...form,birth_year:form.birth_year?Number(form.birth_year):null,death_year:form.death_year?Number(form.death_year):null})
     setSaving(false)
   }
   const addRel=async()=>{
-    if(!relTarget)return alert('Select a person')
-    if(!person)return alert('Save this person first')
+    if(!relTarget)return setFormError('Select a person')
+    if(!person)return setFormError('Save this person first')
+    setFormError('');setAddingRel(true)
     await onRelationshipSave({person1_id:person.id,person2_id:Number(relTarget),type:relType})
+    setAddingRel(false)
     setRelTarget('')
+  }
+  const removeRel=async(id)=>{
+    setRemovingRelId(id)
+    await onRelationshipDelete(id)
+    setRemovingRelId(null)
   }
   const getLabel=r=>{
     const o=people.find(p=>p.id===(r.person1_id===person.id?r.person2_id:r.person1_id))
@@ -39,12 +58,13 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
         <div style={{padding:20,display:'flex',flexDirection:'column',gap:14}}>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
             {form.photo_base64?<img src={form.photo_base64} style={{width:64,height:64,borderRadius:'50%',objectFit:'cover'}}/>:<div style={{width:64,height:64,borderRadius:'50%',background:'#e5e7eb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>👤</div>}
-            <label style={{...bt,background:'#f3f4f6',color:'#374151',fontSize:13}}>
-              {form.photo_base64?'Change Photo':'Upload Photo'}
-              <input type="file" accept="image/*" style={{display:'none'}} onChange={handlePhoto}/>
+            <label style={{...bt,background:'#f3f4f6',color:'#374151',fontSize:13,opacity:uploading?.6:1,pointerEvents:uploading?'none':'auto'}}>
+              {uploading?'Uploading…':form.photo_base64?'Change Photo':'Upload Photo'}
+              <input type="file" accept="image/*" style={{display:'none'}} onChange={handlePhoto} disabled={uploading}/>
             </label>
             {form.photo_base64&&<button onClick={()=>setForm(f=>({...f,photo_base64:''}))} style={{...bt,background:'#fee2e2',color:'#dc2626',fontSize:13}}>Remove</button>}
           </div>
+          {formError&&<div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6}}>{formError}</div>}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div><label style={lbl}>First Name *</label><input value={form.first_name} onChange={e=>setForm(f=>({...f,first_name:e.target.value}))} style={inp}/></div>
             <div><label style={lbl}>Last Name</label><input value={form.last_name} onChange={e=>setForm(f=>({...f,last_name:e.target.value}))} style={inp}/></div>
@@ -62,13 +82,13 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
               {myRels.map(r=>(
                 <div key={r.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 10px',background:'#f9fafb',borderRadius:6,marginBottom:6}}>
                   <span style={{fontSize:13}}>{getLabel(r)}</span>
-                  <button onClick={()=>onRelationshipDelete(r.id)} style={{background:'none',border:'none',color:'#dc2626',fontSize:12,cursor:'pointer'}}>Remove</button>
+                  <button onClick={()=>removeRel(r.id)} disabled={removingRelId===r.id} style={{background:'none',border:'none',color:'#dc2626',fontSize:12,cursor:'pointer',opacity:removingRelId===r.id?.6:1}}>{removingRelId===r.id?'Removing…':'Remove'}</button>
                 </div>
               ))}
               <div style={{display:'flex',gap:8,marginTop:8}}>
                 <select value={relType} onChange={e=>setRelType(e.target.value)} style={{...inp,width:140,flex:'0 0 auto'}}><option value="parent">Parent of</option><option value="spouse">Spouse of</option></select>
                 <select value={relTarget} onChange={e=>setRelTarget(e.target.value)} style={{...inp,flex:1}}><option value="">Select person…</option>{others.map(p=><option key={p.id} value={p.id}>{p.first_name} {p.last_name}</option>)}</select>
-                <button onClick={addRel} style={{...bt,flexShrink:0}}>Add</button>
+                <button onClick={addRel} disabled={addingRel} style={{...bt,flexShrink:0,opacity:addingRel?.6:1}}>{addingRel?'Adding…':'Add'}</button>
               </div>
             </div>
           )}
