@@ -75,6 +75,16 @@ export default function App() {
     return supabase.storage.from('photos').getPublicUrl(path).data.publicUrl
   }
 
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), people, relationships }, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `leung-family-tree-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const confirmDelete = async () => {
     const person = confirmTarget
     setDeleting(true)
@@ -92,9 +102,12 @@ export default function App() {
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
       <header style={{background:'#6b3a1f',color:'#fff',padding:'12px 20px',display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,flexShrink:0}}>
-        <div style={{flexShrink:0}}>
-          <h1 style={{fontSize:20,fontWeight:700,whiteSpace:'nowrap'}}>Leung Family Tree</h1>
-          <p style={{fontSize:12,opacity:0.7}}>{people.length} members</p>
+        <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+          <div style={{width:36,height:36,borderRadius:8,background:'#faf7f2',color:'#6b3a1f',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,flexShrink:0}}>梁</div>
+          <div>
+            <h1 style={{fontSize:20,fontWeight:700,whiteSpace:'nowrap'}}>Leung Family Tree</h1>
+            <p style={{fontSize:12,opacity:0.7}}>{people.length} members</p>
+          </div>
         </div>
         <div ref={searchWrapRef} style={{position:'relative',flex:'1 1 200px',minWidth:140}}>
           <input
@@ -119,6 +132,7 @@ export default function App() {
             </div>
           )}
         </div>
+        <button onClick={exportData} title="Download a backup of all family data as JSON" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>⬇ Export</button>
         <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>
       </header>
       {errorMsg && (

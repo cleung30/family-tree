@@ -1,4 +1,14 @@
 import { useState, useEffect } from 'react'
+const MAX_UPLOAD_BYTES=15*1024*1024
+async function resizeImage(file,maxDim=800,quality=0.85){
+  const bitmap=await createImageBitmap(file)
+  const scale=Math.min(1,maxDim/Math.max(bitmap.width,bitmap.height))
+  const w=Math.round(bitmap.width*scale),h=Math.round(bitmap.height*scale)
+  const canvas=document.createElement('canvas')
+  canvas.width=w;canvas.height=h
+  canvas.getContext('2d').drawImage(bitmap,0,0,w,h)
+  return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality))
+}
 export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onRelationshipSave,onRelationshipDelete}){
   const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',birth_year:'',death_year:'',gender:'m',notes:'',photo_base64:''})
   const [relType,setRelType]=useState('parent')
@@ -11,13 +21,21 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_base64:person.photo_base64||''})},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
+  const isDuplicate=!person&&form.first_name.trim()&&people.some(p=>
+    p.first_name.trim().toLowerCase()===form.first_name.trim().toLowerCase()&&
+    (p.last_name||'').trim().toLowerCase()===(form.last_name||'').trim().toLowerCase()
+  )
   const handlePhoto=async e=>{
     const f=e.target.files[0];if(!f)return
+    if(!f.type.startsWith('image/'))return setFormError('Please choose an image file')
+    if(f.size>MAX_UPLOAD_BYTES)return setFormError('Image is too large (max 15MB)')
     setFormError('');setUploading(true)
     try{
-      const url=await onUploadPhoto(f)
+      const blob=await resizeImage(f)
+      const resized=new File([blob],f.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'})
+      const url=await onUploadPhoto(resized)
       setForm(f=>({...f,photo_base64:url}))
-    }catch(err){setFormError(err.message)}
+    }catch(err){setFormError(err.message||'Failed to process image')}
     setUploading(false)
   }
   const handleSave=async()=>{
@@ -69,6 +87,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
             <div><label style={lbl}>First Name *</label><input value={form.first_name} onChange={e=>setForm(f=>({...f,first_name:e.target.value}))} style={inp}/></div>
             <div><label style={lbl}>Last Name</label><input value={form.last_name} onChange={e=>setForm(f=>({...f,last_name:e.target.value}))} style={inp}/></div>
           </div>
+          {isDuplicate&&<div style={{color:'#92400e',fontSize:13,background:'#fef3c7',padding:'8px 12px',borderRadius:6}}>⚠ "{`${form.first_name} ${form.last_name}`.trim()}" might already be in the tree — check this isn't a duplicate.</div>}
           <div><label style={lbl}>Chinese Name</label><input value={form.chinese_name} onChange={e=>setForm(f=>({...f,chinese_name:e.target.value}))} style={inp}/></div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div><label style={lbl}>Birth Year</label><input type="number" value={form.birth_year} onChange={e=>setForm(f=>({...f,birth_year:e.target.value}))} style={inp}/></div>
