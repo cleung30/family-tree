@@ -11,10 +11,17 @@ const GROUPS = [
 ]
 const birthKey = p => (p.birth_date ? p.birth_date : p.birth_year ? `${p.birth_year}-00-00` : '9999-99-99')
 const sortLabel = p => `${p.first_name} ${p.last_name}`.toLowerCase()
+const EGO_STORAGE_KEY = 'family-tree:terms-ego-id'
 
 export default function FamilyTermsModal({ people, relationships, onClose }) {
-  const [egoId, setEgoId] = useState('')
+  const [egoId, setEgoId] = useState(() => {
+    try { return localStorage.getItem(EGO_STORAGE_KEY) || '' } catch { return '' }
+  })
   const [query, setQuery] = useState('')
+  const chooseEgo = id => {
+    setEgoId(id)
+    try { id ? localStorage.setItem(EGO_STORAGE_KEY, id) : localStorage.removeItem(EGO_STORAGE_KEY) } catch {}
+  }
   const ego = people.find(p => p.id === Number(egoId))
   const sortedPeople = useMemo(() => [...people].sort((a, b) => sortLabel(a).localeCompare(sortLabel(b))), [people])
   const results = useMemo(() => {
@@ -39,7 +46,7 @@ export default function FamilyTermsModal({ people, relationships, onClose }) {
         <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Cantonese terms (Jyutping pronunciation) for what to call each relative, based on your side of the family and birth order.</p>
 
         <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Who are you?</label>
-        <select value={egoId} onChange={e => setEgoId(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, marginTop: 4, marginBottom: 12 }}>
+        <select value={egoId} onChange={e => chooseEgo(e.target.value)} style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 14, marginTop: 4, marginBottom: 12 }}>
           <option value="">Select yourself…</option>
           {sortedPeople.map(p => (
             <option key={p.id} value={p.id}>{p.first_name} {p.last_name}{p.chinese_name ? ` (${p.chinese_name})` : ''}</option>
