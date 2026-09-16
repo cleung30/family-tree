@@ -11,7 +11,7 @@ export function buildFamilyTreePdf(people, relationships, treeImage) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
 
   doc.setFontSize(18)
-  doc.setTextColor('#722F37')
+  doc.setTextColor('#800000')
   doc.text('Leung Family Tree', MARGIN, 40)
   doc.setFontSize(10)
   doc.setTextColor('#6b7280')
@@ -32,7 +32,7 @@ export function buildFamilyTreePdf(people, relationships, treeImage) {
 
   doc.addPage('a4', 'portrait')
   doc.setFontSize(14)
-  doc.setTextColor('#722F37')
+  doc.setTextColor('#800000')
   doc.text('Family Directory', MARGIN, 40)
 
   const rows = buildReportRows(people, relationships)
@@ -42,7 +42,7 @@ export function buildFamilyTreePdf(people, relationships, treeImage) {
     head: [['Name', 'Chinese Name', 'Born', 'Died', 'Relationships', 'Notes']],
     body: rows.map(r => [r.name, r.chineseName, r.born, r.died, r.relationships.join('\n'), r.notes]),
     styles: { fontSize: 8, cellPadding: 4, valign: 'top' },
-    headStyles: { fillColor: '#722F37' },
+    headStyles: { fillColor: '#800000' },
   })
 
   return doc.output('blob')

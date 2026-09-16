@@ -119,8 +119,8 @@ export default function FamilyTree({people,relationships,selectedId,onSelect,foc
           return(
             <g key={n.id} className="tn" transform={`translate(${n.x},${n.y})`} onClick={()=>onSelect(p)} style={{cursor:'pointer'}}>
               <rect x={-NW/2} y={-NH/2} width={NW} height={NH} rx={8}
-                fill={sel?'#722F37':p.gender==='f'?'#fce7f3':p.gender==='m'?'#dbeafe':'#f3f4f6'}
-                stroke={sel?'#722F37':'#d1d5db'} strokeWidth={sel?2:1}/>
+                fill={sel?'#800000':p.gender==='f'?'#fce7f3':p.gender==='m'?'#dbeafe':'#f3f4f6'}
+                stroke={sel?'#800000':'#d1d5db'} strokeWidth={sel?2:1}/>
               <text x={0} y={-6} textAnchor="middle" fontSize={12} fontWeight={600} fill={sel?'#fff':'#1f2937'}>{p.first_name} {p.last_name}</text>
               <text x={0} y={10} textAnchor="middle" fontSize={11} fill={sel?'#ddd':'#6b7280'}>{p.chinese_name||(p.birth_year?`b.${p.birth_year}`:'')}</text>
             </g>
@@ -128,7 +128,7 @@ export default function FamilyTree({people,relationships,selectedId,onSelect,foc
         })}
       </g>
     </svg>
-    <button onClick={()=>{interactedRef.current=false;fitToView()}} title="Reset view" style={{position:'absolute',bottom:16,right:16,width:40,height:40,borderRadius:'50%',border:'1px solid #d1d5db',background:'#fff',color:'#722F37',fontSize:18,cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>⤢</button>
+    <button onClick={()=>{interactedRef.current=false;fitToView()}} title="Reset view" style={{position:'absolute',bottom:16,right:16,width:40,height:40,borderRadius:'50%',border:'1px solid #d1d5db',background:'#fff',color:'#800000',fontSize:18,cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,0.15)'}}>⤢</button>
     </>
   )
 }
