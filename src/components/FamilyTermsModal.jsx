@@ -66,7 +66,7 @@ export default function FamilyTermsModal({ people, relationships, onClose }) {
               if (!rows.length) return null
               return (
                 <div key={group.key} style={{ marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#a13d3d', marginBottom: 6 }}>{group.label}</h3>
+                  <h3 style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: '#7a2e2e', marginBottom: 6 }}>{group.label}</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {rows.map(({ person, relation }) => (
                       <div key={person.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', background: '#f9fafb', borderRadius: 6 }}>
@@ -78,7 +78,7 @@ export default function FamilyTermsModal({ people, relationships, onClose }) {
                           {relation.han ? (
                             <>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'flex-end' }}>
-                                <span style={{ fontSize: 16, fontWeight: 700, color: '#800000' }}>{relation.han}</span>
+                                <span style={{ fontSize: 16, fontWeight: 700, color: '#4a0404' }}>{relation.han}</span>
                                 <button onClick={() => speak(relation.han, 'zh-HK')} title="Pronounce" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14 }}>🔊</button>
                               </div>
                               <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>{relation.jyutping}</div>

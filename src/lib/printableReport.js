@@ -48,7 +48,7 @@ export function buildPrintableHtml(people, relationships) {
 <title>Family Tree — ${esc(new Date().toLocaleDateString())}</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; color: #1f2937; padding: 24px; }
-  h1 { color: #800000; margin-bottom: 4px; }
+  h1 { color: #4a0404; margin-bottom: 4px; }
   p.meta { color: #6b7280; font-size: 13px; margin-top: 0; }
   table { width: 100%; border-collapse: collapse; margin-top: 16px; }
   th, td { border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; font-size: 13px; vertical-align: top; }

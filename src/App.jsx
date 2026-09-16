@@ -228,9 +228,9 @@ export default function App() {
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
-      <header style={{background:'#800000',color:'#fff',padding:'12px 20px',display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,flexShrink:0}}>
+      <header style={{background:'#4a0404',color:'#fff',padding:'12px 20px',display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-          <div style={{width:36,height:36,borderRadius:8,background:'#faf7f2',color:'#800000',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,flexShrink:0}}>梁</div>
+          <div style={{width:36,height:36,borderRadius:8,background:'#faf7f2',color:'#4a0404',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,flexShrink:0}}>梁</div>
           <div>
             <h1 style={{fontSize:20,fontWeight:700,whiteSpace:'nowrap'}}>Leung Family Tree</h1>
             <p style={{fontSize:12,opacity:0.7}}>{people.length} members</p>
@@ -260,7 +260,7 @@ export default function App() {
           )}
         </div>
         <div ref={exportWrapRef} style={{position:'relative',flexShrink:0}}>
-          <button onClick={() => setExportOpen(o => !o)} title="Export the family tree" style={{...btn,background:'#a13d3d',color:'#fff'}}>⬇ Export</button>
+          <button onClick={() => setExportOpen(o => !o)} title="Export the family tree" style={{...btn,background:'#7a2e2e',color:'#fff'}}>⬇ Export</button>
           {exportOpen && (
             <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,background:'#fff',borderRadius:6,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',overflow:'hidden',zIndex:20,minWidth:220}}>
               <ExportMenuItem label="JSON Backup" hint="Full data, for backup/restore" onClick={() => { exportJson(); setExportOpen(false) }} />
@@ -272,13 +272,13 @@ export default function App() {
             </div>
           )}
         </div>
-        <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#a13d3d',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
-        {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#800000',flexShrink:0}}>+ Add Member</button>}
-        {isAdmin && <button onClick={openEditors} style={{...btn,background:'#a13d3d',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
+        <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
+        {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
+        {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
         {session ? (
-          <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#a13d3d',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
+          <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
         ) : (
-          <button onClick={openAuth} style={{...btn,background:'#a13d3d',color:'#fff',flexShrink:0}}>Sign in to edit</button>
+          <button onClick={openAuth} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>Sign in to edit</button>
         )}
       </header>
       {errorMsg && (
@@ -377,7 +377,7 @@ export default function App() {
                   <div key={e.email} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 10px',background:'#f9fafb',borderRadius:6}}>
                     <div>
                       <div style={{fontSize:13,fontWeight:600}}>{e.email}</div>
-                      <div style={{fontSize:11,color:'#a13d3d',textTransform:'uppercase',fontWeight:700}}>{e.role}</div>
+                      <div style={{fontSize:11,color:'#7a2e2e',textTransform:'uppercase',fontWeight:700}}>{e.role}</div>
                     </div>
                     <button onClick={() => removeEditor(e.email)} disabled={removingEditorEmail===e.email || e.email===session?.user.email} title={e.email===session?.user.email?"You can't remove yourself":'Revoke access'} style={{background:'none',border:'none',color:'#dc2626',fontSize:12,cursor:'pointer',opacity:(removingEditorEmail===e.email||e.email===session?.user.email)?.4:1}}>{removingEditorEmail===e.email?'Removing…':'Remove'}</button>
                   </div>
@@ -411,4 +411,4 @@ function ExportMenuItem({label,hint,onClick,last}) {
     </button>
   )
 }
-const btn = {padding:'8px 16px',borderRadius:6,border:'none',background:'#800000',color:'#fff',fontWeight:600,fontSize:14}
+const btn = {padding:'8px 16px',borderRadius:6,border:'none',background:'#4a0404',color:'#fff',fontWeight:600,fontSize:14}
