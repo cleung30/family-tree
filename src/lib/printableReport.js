@@ -2,7 +2,9 @@ function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-export function buildPrintableHtml(people, relationships) {
+// One row of directory data per person, sorted by name, shared by the
+// printable HTML report and the PDF export's family-directory table.
+export function buildReportRows(people, relationships) {
   const byId = {}
   people.forEach(p => { byId[p.id] = p })
   const nameOf = id => { const p = byId[id]; return p ? `${p.first_name} ${p.last_name || ''}`.trim() : 'Unknown' }
@@ -16,15 +18,28 @@ export function buildPrintableHtml(people, relationships) {
       ;(relsOf[r.person2_id] ??= []).push(`Spouse of ${nameOf(r.person1_id)}`)
     }
   }
-  const sorted = [...people].sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
-  const rows = sorted.map(p => `
+  return [...people]
+    .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
+    .map(p => ({
+      name: `${p.first_name} ${p.last_name || ''}`.trim(),
+      chineseName: p.chinese_name || '',
+      born: p.birth_year ?? '',
+      died: p.death_year ?? '',
+      relationships: relsOf[p.id] || [],
+      notes: p.notes || '',
+    }))
+}
+
+export function buildPrintableHtml(people, relationships) {
+  const rows = buildReportRows(people, relationships)
+  const bodyRows = rows.map(r => `
     <tr>
-      <td>${esc(p.first_name)} ${esc(p.last_name)}</td>
-      <td>${esc(p.chinese_name)}</td>
-      <td>${p.birth_year ?? ''}</td>
-      <td>${p.death_year ?? ''}</td>
-      <td>${(relsOf[p.id] || []).map(esc).join('<br>')}</td>
-      <td>${esc(p.notes)}</td>
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.chineseName)}</td>
+      <td>${r.born}</td>
+      <td>${r.died}</td>
+      <td>${r.relationships.map(esc).join('<br>')}</td>
+      <td>${esc(r.notes)}</td>
     </tr>`).join('')
   return `<!doctype html>
 <html>
@@ -43,10 +58,10 @@ export function buildPrintableHtml(people, relationships) {
 </head>
 <body>
   <h1>Leung Family Tree</h1>
-  <p class="meta">${sorted.length} members · generated ${esc(new Date().toLocaleString())}</p>
+  <p class="meta">${rows.length} members · generated ${esc(new Date().toLocaleString())}</p>
   <table>
     <thead><tr><th>Name</th><th>Chinese Name</th><th>Born</th><th>Died</th><th>Relationships</th><th>Notes</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${bodyRows}</tbody>
   </table>
 </body>
 </html>`

@@ -1,5 +1,19 @@
 import { describe, it, expect } from 'vitest'
-import { buildPrintableHtml } from './printableReport'
+import { buildPrintableHtml, buildReportRows } from './printableReport'
+
+describe('buildReportRows', () => {
+  it('sorts by name and folds relationships into a per-person list', () => {
+    const people = [
+      { id: 1, first_name: 'Bob', last_name: 'X' },
+      { id: 2, first_name: 'Alice', last_name: 'X' },
+    ]
+    const relationships = [{ person1_id: 1, person2_id: 2, type: 'parent' }]
+    const rows = buildReportRows(people, relationships)
+    expect(rows.map(r => r.name)).toEqual(['Alice X', 'Bob X'])
+    expect(rows.find(r => r.name === 'Bob X').relationships).toEqual(['Parent of Alice X'])
+    expect(rows.find(r => r.name === 'Alice X').relationships).toEqual(['Child of Bob X'])
+  })
+})
 
 describe('buildPrintableHtml', () => {
   it('lists each person once, sorted by name, with their relationships summarized', () => {

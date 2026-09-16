@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from './lib/supabase'
-import FamilyTree, { speak, exportTreeAsPng } from './components/FamilyTree'
+import FamilyTree, { speak, exportTreeAsPng, exportTreeAsDataUrl } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 import { isVietnameseName } from './lib/nameLanguage'
@@ -192,6 +192,17 @@ export default function App() {
       downloadBlob(blob, `leung-family-tree-${dateStamp()}.png`)
     } catch (err) { setErrorMsg(err.message || 'Failed to export image') }
   }
+  const exportPdf = async () => {
+    let treeImage = null
+    try { treeImage = await exportTreeAsDataUrl(people, relationships) } catch { /* no members yet; directory-only PDF still works */ }
+    try {
+      // Lazy-loaded: jsPDF pulls in html2canvas/dompurify, which would
+      // otherwise bloat the initial bundle for everyone who never exports a PDF.
+      const { buildFamilyTreePdf } = await import('./lib/pdfExport')
+      const blob = buildFamilyTreePdf(people, relationships, treeImage)
+      downloadBlob(blob, `leung-family-tree-${dateStamp()}.pdf`)
+    } catch (err) { setErrorMsg(err.message || 'Failed to export PDF') }
+  }
   const printReport = () => {
     const win = window.open('', '_blank')
     if (!win) return setErrorMsg('Please allow pop-ups to print the family tree')
@@ -256,6 +267,7 @@ export default function App() {
               <ExportMenuItem label="CSV Spreadsheet" hint="Opens in Excel/Sheets" onClick={() => { exportCsv(); setExportOpen(false) }} />
               <ExportMenuItem label="GEDCOM" hint="For genealogy software" onClick={() => { exportGedcom(); setExportOpen(false) }} />
               <ExportMenuItem label="Tree Image (PNG)" hint="Snapshot of the whole tree" onClick={() => { setExportOpen(false); exportPng() }} />
+              <ExportMenuItem label="PDF Document" hint="Tree diagram + family directory" onClick={() => { setExportOpen(false); exportPdf() }} />
               <ExportMenuItem label="Printable Page" hint="Opens a print-ready page" last onClick={() => { setExportOpen(false); printReport() }} />
             </div>
           )}

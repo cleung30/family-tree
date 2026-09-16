@@ -170,7 +170,7 @@ export function buildTreeSvgMarkup(people,relationships){
     `<rect x="${minX}" y="${minY}" width="${width}" height="${height}" fill="#ffffff"/>${edgeEls}${nodeEls}</svg>`
 }
 
-export async function exportTreeAsPng(people,relationships,scale=2){
+async function renderTreeCanvas(people,relationships,scale){
   const svgMarkup=buildTreeSvgMarkup(people,relationships)
   if(!svgMarkup)throw new Error('No family members to export')
   const url=URL.createObjectURL(new Blob([svgMarkup],{type:'image/svg+xml;charset=utf-8'}))
@@ -187,10 +187,22 @@ export async function exportTreeAsPng(people,relationships,scale=2){
     const ctx=canvas.getContext('2d')
     ctx.scale(scale,scale)
     ctx.drawImage(img,0,0)
-    return await new Promise(resolve=>canvas.toBlob(resolve,'image/png'))
+    return canvas
   }finally{
     URL.revokeObjectURL(url)
   }
+}
+
+export async function exportTreeAsPng(people,relationships,scale=2){
+  const canvas=await renderTreeCanvas(people,relationships,scale)
+  return await new Promise(resolve=>canvas.toBlob(resolve,'image/png'))
+}
+
+// For embedding the tree in another document (e.g. a PDF) that needs the
+// pixel dimensions alongside the image data.
+export async function exportTreeAsDataUrl(people,relationships,scale=2){
+  const canvas=await renderTreeCanvas(people,relationships,scale)
+  return {dataUrl:canvas.toDataURL('image/png'),width:canvas.width,height:canvas.height}
 }
 export function buildLayout(people,relationships){
   if(!people.length)return{nodes:[],edges:[]}
