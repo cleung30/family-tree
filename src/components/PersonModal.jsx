@@ -80,7 +80,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   }
   const inp={width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14}
   const lbl={display:'block',fontSize:12,fontWeight:600,color:'#6b7280',marginBottom:4}
-  const bt={padding:'8px 14px',borderRadius:6,border:'none',background:'#722F37',color:'#fff',fontWeight:600,fontSize:14,cursor:'pointer'}
+  const bt={padding:'8px 14px',borderRadius:6,border:'none',background:'#800000',color:'#fff',fontWeight:600,fontSize:14,cursor:'pointer'}
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}} onClick={e=>e.target===e.currentTarget&&handleClose()}>
       <div style={{background:'#fff',borderRadius:12,width:520,maxHeight:'90vh',overflow:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
