@@ -182,9 +182,11 @@ function classifyBlood(egoId, targetId, graph) {
     const side = upPath[0]
     const tong = side === 'father' && downPath[0] === 'son'
     const prefix = tong ? '堂' : '表'
+    const prefixJyut = tong ? 'tong4' : 'biu2'
     const viaCousinBrother = downPath[1] === 'son'
     const base = viaCousinBrother ? prefix + '姪' + (g === 'f' ? '女' : '仔') : prefix + '外甥' + (g === 'f' ? '女' : '')
-    return term(base, `${tong ? 'tong4' : 'biu2'} ...`, `Cousin's child, approximate (${tong ? 'paternal' : 'extended'} line)`, { generationDelta })
+    const baseJyut = viaCousinBrother ? 'zat6' + (g === 'f' ? ' neoi2' : ' zai2') : 'ngoi6 sang1' + (g === 'f' ? ' neoi2' : '')
+    return term(base, `${prefixJyut} ${baseJyut}`, `Cousin's child, approximate (${tong ? 'paternal' : 'extended'} line)`, { generationDelta })
   }
   if (up === 3 && down === 1) {
     const internal = upPath[0] === 'father' && upPath[1] === 'father'
