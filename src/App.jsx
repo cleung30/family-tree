@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import FamilyTree, { speak, exportTreeAsPng, exportTreeAsDataUrl } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
+import LandingPage from './components/LandingPage'
 import { isVietnameseName } from './lib/nameLanguage'
 import { peopleToCsv } from './lib/csvExport'
 import { generateGedcom } from './lib/gedcom'
@@ -58,6 +59,7 @@ export default function App() {
   const [newEditorRole, setNewEditorRole] = useState('editor')
   const [invitingEditor, setInvitingEditor] = useState(false)
   const [removingEditorEmail, setRemovingEditorEmail] = useState(null)
+  const [showLanding, setShowLanding] = useState(true)
   const [termsOpen, setTermsOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
@@ -236,6 +238,7 @@ export default function App() {
 
   if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontSize:18,color:'#888'}}>Loading family tree…</div>
   if (error) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12}}><div style={{color:'#c00'}}>{error}</div><button onClick={load} style={btn}>Retry</button></div>
+  if (showLanding) return <LandingPage people={people} onEnter={() => setShowLanding(false)} />
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
