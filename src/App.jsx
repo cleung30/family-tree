@@ -60,8 +60,18 @@ export default function App() {
   const [removingEditorEmail, setRemovingEditorEmail] = useState(null)
   const [termsOpen, setTermsOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
   const searchWrapRef = useRef(null)
   const exportWrapRef = useRef(null)
+  const moreWrapRef = useRef(null)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const onChange = () => setIsNarrow(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -134,6 +144,7 @@ export default function App() {
     const onDocMouseDown = (e) => {
       if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setDropdownOpen(false)
       if (exportWrapRef.current && !exportWrapRef.current.contains(e.target)) setExportOpen(false)
+      if (moreWrapRef.current && !moreWrapRef.current.contains(e.target)) setMoreOpen(false)
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
@@ -272,13 +283,33 @@ export default function App() {
             </div>
           )}
         </div>
-        <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
-        {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
-        {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
-        {session ? (
-          <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
+        {isNarrow ? (
+          <div ref={moreWrapRef} style={{position:'relative',flexShrink:0}}>
+            <button onClick={() => setMoreOpen(o => !o)} title="More actions" style={{...btn,background:'#7a2e2e',color:'#fff'}}>⋯</button>
+            {moreOpen && (
+              <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,background:'#fff',borderRadius:6,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',overflow:'hidden',zIndex:20,minWidth:220,maxWidth:'calc(100vw - 32px)'}}>
+                <ExportMenuItem label="称谓 Family Terms" onClick={() => { setTermsOpen(true); setMoreOpen(false) }} />
+                {isEditor && <ExportMenuItem label="+ Add Member" onClick={() => { setSelected(null); setModalMode('add'); setMoreOpen(false) }} />}
+                {isAdmin && <ExportMenuItem label="👥 Manage Editors" onClick={() => { openEditors(); setMoreOpen(false) }} />}
+                {session ? (
+                  <ExportMenuItem label={`${isEditor?'✓ ':''}${session.user.email}`} hint="Signed in · tap to sign out" last onClick={() => { signOut(); setMoreOpen(false) }} />
+                ) : (
+                  <ExportMenuItem label="Sign in to edit" last onClick={() => { openAuth(); setMoreOpen(false) }} />
+                )}
+              </div>
+            )}
+          </div>
         ) : (
-          <button onClick={openAuth} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>Sign in to edit</button>
+          <>
+            <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
+            {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
+            {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
+            {session ? (
+              <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
+            ) : (
+              <button onClick={openAuth} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>Sign in to edit</button>
+            )}
+          </>
         )}
       </header>
       {errorMsg && (

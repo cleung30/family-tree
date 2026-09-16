@@ -83,7 +83,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   const bt={padding:'8px 14px',borderRadius:6,border:'none',background:'#4a0404',color:'#fff',fontWeight:600,fontSize:14,cursor:'pointer'}
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}} onClick={e=>e.target===e.currentTarget&&handleClose()}>
-      <div style={{background:'#fff',borderRadius:12,width:520,maxHeight:'90vh',overflow:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+      <div style={{background:'#fff',borderRadius:12,width:'min(520px, 92vw)',maxHeight:'90vh',overflow:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
         <div style={{padding:'16px 20px',borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <h2 style={{fontSize:18,fontWeight:700}}>{person?'Edit Member':'Add Member'}</h2>
           <button onClick={handleClose} style={{background:'none',border:'none',fontSize:20,color:'#6b7280',cursor:'pointer'}}>✕</button>
