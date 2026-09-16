@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import FamilyTree, { speak } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
+import FamilyTermsModal from './components/FamilyTermsModal'
 
 export default function App() {
   const [people, setPeople] = useState([])
@@ -32,6 +33,7 @@ export default function App() {
   const [newEditorRole, setNewEditorRole] = useState('editor')
   const [invitingEditor, setInvitingEditor] = useState(false)
   const [removingEditorEmail, setRemovingEditorEmail] = useState(null)
+  const [termsOpen, setTermsOpen] = useState(false)
   const searchWrapRef = useRef(null)
 
   useEffect(() => {
@@ -200,6 +202,7 @@ export default function App() {
           )}
         </div>
         <button onClick={exportData} title="Download a backup of all family data as JSON" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>⬇ Export</button>
+        <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
         {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>}
         {isAdmin && <button onClick={openEditors} style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
         {session ? (
@@ -286,6 +289,7 @@ export default function App() {
           </div>
         </div>
       )}
+      {termsOpen && <FamilyTermsModal people={people} relationships={relationships} onClose={() => setTermsOpen(false)} />}
       {editorsOpen && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && setEditorsOpen(false)}>
           <div style={{background:'#fff',borderRadius:12,width:'min(420px, 90vw)',maxHeight:'85vh',overflowY:'auto',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
