@@ -10,7 +10,7 @@ async function resizeImage(file,maxDim=800,quality=0.85){
   return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality))
 }
 export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onDeletePhoto,onRelationshipSave,onRelationshipDelete}){
-  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',birth_year:'',death_year:'',gender:'m',notes:'',photo_url:''})
+  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',birth_year:'',death_year:'',gender:'m',notes:'',photo_url:''})
   const [relType,setRelType]=useState('parent')
   const [relTarget,setRelTarget]=useState('')
   const [saving,setSaving]=useState(false)
@@ -24,7 +24,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   // is left alone here — App only deletes that one once a save confirms
   // it's no longer referenced.
   const pendingPhotoUrlRef=useRef(null)
-  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
+  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
   const isDuplicate=!person&&form.first_name.trim()&&people.some(p=>
@@ -103,7 +103,16 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
             <div><label style={lbl}>Last Name</label><input value={form.last_name} onChange={e=>setForm(f=>({...f,last_name:e.target.value}))} style={inp}/></div>
           </div>
           {isDuplicate&&<div style={{color:'#92400e',fontSize:13,background:'#fef3c7',padding:'8px 12px',borderRadius:6}}>⚠ "{`${form.first_name} ${form.last_name}`.trim()}" might already be in the tree — check this isn't a duplicate.</div>}
-          <div><label style={lbl}>Chinese Name</label><input value={form.chinese_name} onChange={e=>setForm(f=>({...f,chinese_name:e.target.value}))} style={inp}/></div>
+          <div>
+            <label style={lbl}>Chinese Name</label>
+            <div style={{display:'flex',gap:8}}>
+              <input value={form.chinese_name} onChange={e=>setForm(f=>({...f,chinese_name:e.target.value}))} style={{...inp,flex:1}}/>
+              <select value={form.chinese_name_lang} onChange={e=>setForm(f=>({...f,chinese_name_lang:e.target.value}))} title="How this name should be pronounced" style={{...inp,width:150,flex:'0 0 auto'}}>
+                <option value="yue">Cantonese</option>
+                <option value="cmn">Mandarin</option>
+              </select>
+            </div>
+          </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div><label style={lbl}>Birth Year</label><input type="number" value={form.birth_year} onChange={e=>setForm(f=>({...f,birth_year:e.target.value}))} style={inp}/></div>
             <div><label style={lbl}>Death Year</label><input type="number" value={form.death_year} onChange={e=>setForm(f=>({...f,death_year:e.target.value}))} style={inp}/></div>

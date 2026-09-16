@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import FamilyTree, { speak } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
+import { isVietnameseName } from './lib/nameLanguage'
 
 function photoStoragePath(url) {
   const marker = '/photos/'
@@ -240,8 +241,8 @@ export default function App() {
             <h2 style={{fontSize:18,fontWeight:700,textAlign:'center'}}>{selected.first_name} {selected.last_name}</h2>
             {selected.chinese_name && <p style={{textAlign:'center',color:'#888',fontSize:14}}>{selected.chinese_name}</p>}
             <div style={{textAlign:'center',marginTop:8,display:'flex',gap:8,justifyContent:'center'}}>
-              <button onClick={() => speak(`${selected.first_name} ${selected.last_name}`,'en-US')} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>🔊 English</button>
-              {selected.chinese_name && <button onClick={() => speak(selected.chinese_name,'zh-CN')} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>🔊 中文</button>}
+              <button onClick={() => speak(`${selected.first_name} ${selected.last_name}`, isVietnameseName(selected)?'vi-VN':'en-US')} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>{isVietnameseName(selected)?'🔊 Tiếng Việt':'🔊 English'}</button>
+              {selected.chinese_name && <button onClick={() => speak(selected.chinese_name, selected.chinese_name_lang==='cmn'?'zh-CN':'zh-HK')} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>{selected.chinese_name_lang==='cmn'?'🔊 普通話':'🔊 廣東話'}</button>}
             </div>
             <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:8}}>
               {selected.birth_year && <Info label="Born" value={selected.birth_year} />}
