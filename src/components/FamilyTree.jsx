@@ -139,7 +139,7 @@ export function speak(text,lang){
   if(lang)u.lang=lang
   window.speechSynthesis.speak(u)
 }
-function buildLayout(people,relationships){
+export function buildLayout(people,relationships){
   if(!people.length)return{nodes:[],edges:[]}
   const childOf={},spouseOf={},parentOf={}
   for(const r of relationships){

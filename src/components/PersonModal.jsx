@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 const MAX_UPLOAD_BYTES=15*1024*1024
 async function resizeImage(file,maxDim=800,quality=0.85){
   const bitmap=await createImageBitmap(file)
@@ -9,8 +9,8 @@ async function resizeImage(file,maxDim=800,quality=0.85){
   canvas.getContext('2d').drawImage(bitmap,0,0,w,h)
   return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality))
 }
-export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onRelationshipSave,onRelationshipDelete}){
-  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',birth_year:'',death_year:'',gender:'m',notes:'',photo_base64:''})
+export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onDeletePhoto,onRelationshipSave,onRelationshipDelete}){
+  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',birth_year:'',death_year:'',gender:'m',notes:'',photo_url:''})
   const [relType,setRelType]=useState('parent')
   const [relTarget,setRelTarget]=useState('')
   const [saving,setSaving]=useState(false)
@@ -18,7 +18,13 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   const [addingRel,setAddingRel]=useState(false)
   const [removingRelId,setRemovingRelId]=useState(null)
   const [formError,setFormError]=useState('')
-  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_base64:person.photo_base64||''})},[person])
+  // Tracks a photo uploaded this session that hasn't been saved to a person
+  // record yet, so it can be cleaned up if replaced again or the modal is
+  // closed without saving. The photo on the record being edited (if any)
+  // is left alone here — App only deletes that one once a save confirms
+  // it's no longer referenced.
+  const pendingPhotoUrlRef=useRef(null)
+  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
   const isDuplicate=!person&&form.first_name.trim()&&people.some(p=>
@@ -33,10 +39,19 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
     try{
       const blob=await resizeImage(f)
       const resized=new File([blob],f.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'})
-      const url=await onUploadPhoto(resized)
-      setForm(f=>({...f,photo_base64:url}))
+      const url=await onUploadPhoto(resized,pendingPhotoUrlRef.current)
+      pendingPhotoUrlRef.current=url
+      setForm(f=>({...f,photo_url:url}))
     }catch(err){setFormError(err.message||'Failed to process image')}
     setUploading(false)
+  }
+  const removePhoto=()=>{
+    if(pendingPhotoUrlRef.current){onDeletePhoto(pendingPhotoUrlRef.current);pendingPhotoUrlRef.current=null}
+    setForm(f=>({...f,photo_url:''}))
+  }
+  const handleClose=()=>{
+    if(pendingPhotoUrlRef.current){onDeletePhoto(pendingPhotoUrlRef.current);pendingPhotoUrlRef.current=null}
+    onClose()
   }
   const handleSave=async()=>{
     if(!form.first_name.trim())return setFormError('First name is required')
@@ -67,20 +82,20 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   const lbl={display:'block',fontSize:12,fontWeight:600,color:'#6b7280',marginBottom:4}
   const bt={padding:'8px 14px',borderRadius:6,border:'none',background:'#6b3a1f',color:'#fff',fontWeight:600,fontSize:14,cursor:'pointer'}
   return(
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}} onClick={e=>e.target===e.currentTarget&&handleClose()}>
       <div style={{background:'#fff',borderRadius:12,width:520,maxHeight:'90vh',overflow:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
         <div style={{padding:'16px 20px',borderBottom:'1px solid #e5e7eb',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <h2 style={{fontSize:18,fontWeight:700}}>{person?'Edit Member':'Add Member'}</h2>
-          <button onClick={onClose} style={{background:'none',border:'none',fontSize:20,color:'#6b7280',cursor:'pointer'}}>✕</button>
+          <button onClick={handleClose} style={{background:'none',border:'none',fontSize:20,color:'#6b7280',cursor:'pointer'}}>✕</button>
         </div>
         <div style={{padding:20,display:'flex',flexDirection:'column',gap:14}}>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
-            {form.photo_base64?<img src={form.photo_base64} style={{width:64,height:64,borderRadius:'50%',objectFit:'cover'}}/>:<div style={{width:64,height:64,borderRadius:'50%',background:'#e5e7eb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>👤</div>}
+            {form.photo_url?<img src={form.photo_url} style={{width:64,height:64,borderRadius:'50%',objectFit:'cover'}}/>:<div style={{width:64,height:64,borderRadius:'50%',background:'#e5e7eb',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>👤</div>}
             <label style={{...bt,background:'#f3f4f6',color:'#374151',fontSize:13,opacity:uploading?.6:1,pointerEvents:uploading?'none':'auto'}}>
-              {uploading?'Uploading…':form.photo_base64?'Change Photo':'Upload Photo'}
+              {uploading?'Uploading…':form.photo_url?'Change Photo':'Upload Photo'}
               <input type="file" accept="image/*" style={{display:'none'}} onChange={handlePhoto} disabled={uploading}/>
             </label>
-            {form.photo_base64&&<button onClick={()=>setForm(f=>({...f,photo_base64:''}))} style={{...bt,background:'#fee2e2',color:'#dc2626',fontSize:13}}>Remove</button>}
+            {form.photo_url&&<button onClick={removePhoto} style={{...bt,background:'#fee2e2',color:'#dc2626',fontSize:13}}>Remove</button>}
           </div>
           {formError&&<div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6}}>{formError}</div>}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -113,7 +128,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
           )}
         </div>
         <div style={{padding:'12px 20px',borderTop:'1px solid #e5e7eb',display:'flex',justifyContent:'flex-end',gap:8}}>
-          <button onClick={onClose} style={{...bt,background:'#f3f4f6',color:'#374151'}}>Cancel</button>
+          <button onClick={handleClose} style={{...bt,background:'#f3f4f6',color:'#374151'}}>Cancel</button>
           <button onClick={handleSave} disabled={saving} style={{...bt,opacity:saving?.6:1}}>{saving?'Saving…':'Save'}</button>
         </div>
       </div>

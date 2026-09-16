@@ -4,6 +4,12 @@ import FamilyTree, { speak } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 
+function photoStoragePath(url) {
+  const marker = '/photos/'
+  const i = url.indexOf(marker)
+  return i === -1 ? null : url.slice(i + marker.length)
+}
+
 export default function App() {
   const [people, setPeople] = useState([])
   const [relationships, setRelationships] = useState([])
@@ -126,6 +132,7 @@ export default function App() {
   useEffect(() => { load() }, [load])
 
   const handleSave = async (data) => {
+    const previousPhoto = modalMode === 'edit' ? selected?.photo_url : null
     if (modalMode === 'add') {
       const { error } = await supabase.from('people').insert([data])
       if (error) return setErrorMsg(error.message)
@@ -133,15 +140,22 @@ export default function App() {
       const { error } = await supabase.from('people').update(data).eq('id', selected.id)
       if (error) return setErrorMsg(error.message)
     }
+    if (previousPhoto && previousPhoto !== data.photo_url) deletePhoto(previousPhoto)
     setModalMode(null); setSelected(null); load()
   }
 
-  const uploadPhoto = async (file) => {
+  const uploadPhoto = async (file, previousUrl) => {
     const ext = file.name.split('.').pop()
     const path = `${crypto.randomUUID()}.${ext}`
     const { error } = await supabase.storage.from('photos').upload(path, file)
     if (error) throw error
+    if (previousUrl) deletePhoto(previousUrl)
     return supabase.storage.from('photos').getPublicUrl(path).data.publicUrl
+  }
+
+  const deletePhoto = async (url) => {
+    const path = photoStoragePath(url)
+    if (path) await supabase.storage.from('photos').remove([path])
   }
 
   const exportData = () => {
@@ -157,11 +171,11 @@ export default function App() {
   const confirmDelete = async () => {
     const person = confirmTarget
     setDeleting(true)
-    const { error: re } = await supabase.from('relationships').delete().or(`person1_id.eq.${person.id},person2_id.eq.${person.id}`)
-    const { error: pe } = re ? {} : await supabase.from('people').delete().eq('id', person.id)
+    const { error } = await supabase.from('people').delete().eq('id', person.id)
     setDeleting(false)
     setConfirmTarget(null)
-    if (re || pe) return setErrorMsg((re || pe).message)
+    if (error) return setErrorMsg(error.message)
+    if (person.photo_url) deletePhoto(person.photo_url)
     setSelected(null); load()
   }
 
@@ -222,7 +236,7 @@ export default function App() {
         {selected && (
           <div style={{position:'absolute',top:0,right:0,width:'min(280px, 88vw)',height:'100%',background:'#fff',borderLeft:'1px solid #e5e7eb',padding:20,overflowY:'auto',boxShadow:'-4px 0 12px rgba(0,0,0,0.08)'}}>
             <button onClick={() => setSelected(null)} style={{position:'absolute',top:12,right:12,background:'none',border:'none',fontSize:18,color:'#888'}}>✕</button>
-            {selected.photo_base64 && <img src={selected.photo_base64} alt="" style={{width:80,height:80,borderRadius:'50%',objectFit:'cover',display:'block',margin:'0 auto 12px'}} />}
+            {selected.photo_url && <img src={selected.photo_url} alt="" style={{width:80,height:80,borderRadius:'50%',objectFit:'cover',display:'block',margin:'0 auto 12px'}} />}
             <h2 style={{fontSize:18,fontWeight:700,textAlign:'center'}}>{selected.first_name} {selected.last_name}</h2>
             {selected.chinese_name && <p style={{textAlign:'center',color:'#888',fontSize:14}}>{selected.chinese_name}</p>}
             <div style={{textAlign:'center',marginTop:8,display:'flex',gap:8,justifyContent:'center'}}>
@@ -248,6 +262,7 @@ export default function App() {
         <PersonModal person={modalMode==='edit'?selected:null} people={people} relationships={relationships}
           onSave={handleSave} onClose={() => setModalMode(null)}
           onUploadPhoto={uploadPhoto}
+          onDeletePhoto={deletePhoto}
           onRelationshipSave={async (rel) => { const {error}=await supabase.from('relationships').insert([rel]); if(error)setErrorMsg(error.message); else load() }}
           onRelationshipDelete={async (id) => { const {error}=await supabase.from('relationships').delete().eq('id',id); if(error)setErrorMsg(error.message); else load() }}
         />
