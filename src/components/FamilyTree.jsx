@@ -139,6 +139,71 @@ export function speak(text,lang){
   if(lang)u.lang=lang
   window.speechSynthesis.speak(u)
 }
+
+const escXml=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+
+// Renders the whole tree (not just what's on screen) as standalone SVG
+// markup, independent of the live pan/zoom state, so it can be exported
+// as an image at any time.
+export function buildTreeSvgMarkup(people,relationships){
+  const {nodes,edges}=buildLayout(people,relationships)
+  if(!nodes.length)return null
+  const byId={};people.forEach(p=>{byId[p.id]=p})
+  const margin=40
+  const minX=Math.min(...nodes.map(n=>n.x))-NW/2-margin
+  const maxX=Math.max(...nodes.map(n=>n.x))+NW/2+margin
+  const minY=Math.min(...nodes.map(n=>n.y))-NH/2-margin
+  const maxY=Math.max(...nodes.map(n=>n.y))+NH/2+margin
+  const width=maxX-minX,height=maxY-minY
+  const edgeEls=edges.map(e=>`<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="${e.type==='spouse'?'#f59e0b':'#6b7280'}" stroke-width="1.5"${e.type==='spouse'?' stroke-dasharray="5,4"':''}/>`).join('')
+  const nodeEls=nodes.map(n=>{
+    const p=byId[n.id];if(!p)return ''
+    const fill=p.gender==='f'?'#fce7f3':p.gender==='m'?'#dbeafe':'#f3f4f6'
+    const line2=p.chinese_name||(p.birth_year?`b.${p.birth_year}`:'')
+    return `<g transform="translate(${n.x},${n.y})">`+
+      `<rect x="${-NW/2}" y="${-NH/2}" width="${NW}" height="${NH}" rx="8" fill="${fill}" stroke="#d1d5db" stroke-width="1"/>`+
+      `<text x="0" y="-6" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2937" font-family="sans-serif">${escXml(`${p.first_name} ${p.last_name||''}`.trim())}</text>`+
+      `<text x="0" y="10" text-anchor="middle" font-size="11" fill="#6b7280" font-family="sans-serif">${escXml(line2)}</text>`+
+      `</g>`
+  }).join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${minX} ${minY} ${width} ${height}">`+
+    `<rect x="${minX}" y="${minY}" width="${width}" height="${height}" fill="#ffffff"/>${edgeEls}${nodeEls}</svg>`
+}
+
+async function renderTreeCanvas(people,relationships,scale){
+  const svgMarkup=buildTreeSvgMarkup(people,relationships)
+  if(!svgMarkup)throw new Error('No family members to export')
+  const url=URL.createObjectURL(new Blob([svgMarkup],{type:'image/svg+xml;charset=utf-8'}))
+  try{
+    const img=await new Promise((resolve,reject)=>{
+      const image=new Image()
+      image.onload=()=>resolve(image)
+      image.onerror=()=>reject(new Error('Failed to render tree image'))
+      image.src=url
+    })
+    const canvas=document.createElement('canvas')
+    canvas.width=img.width*scale
+    canvas.height=img.height*scale
+    const ctx=canvas.getContext('2d')
+    ctx.scale(scale,scale)
+    ctx.drawImage(img,0,0)
+    return canvas
+  }finally{
+    URL.revokeObjectURL(url)
+  }
+}
+
+export async function exportTreeAsPng(people,relationships,scale=2){
+  const canvas=await renderTreeCanvas(people,relationships,scale)
+  return await new Promise(resolve=>canvas.toBlob(resolve,'image/png'))
+}
+
+// For embedding the tree in another document (e.g. a PDF) that needs the
+// pixel dimensions alongside the image data.
+export async function exportTreeAsDataUrl(people,relationships,scale=2){
+  const canvas=await renderTreeCanvas(people,relationships,scale)
+  return {dataUrl:canvas.toDataURL('image/png'),width:canvas.width,height:canvas.height}
+}
 export function buildLayout(people,relationships){
   if(!people.length)return{nodes:[],edges:[]}
   const childOf={},spouseOf={},parentOf={}

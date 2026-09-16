@@ -1,14 +1,32 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from './lib/supabase'
-import FamilyTree, { speak } from './components/FamilyTree'
+import FamilyTree, { speak, exportTreeAsPng, exportTreeAsDataUrl } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 import { isVietnameseName } from './lib/nameLanguage'
+import { peopleToCsv } from './lib/csvExport'
+import { generateGedcom } from './lib/gedcom'
+import { buildPrintableHtml } from './lib/printableReport'
 
 function photoStoragePath(url) {
   const marker = '/photos/'
   const i = url.indexOf(marker)
   return i === -1 ? null : url.slice(i + marker.length)
+}
+
+const dateStamp = () => new Date().toISOString().slice(0, 10)
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadText(content, filename, mime) {
+  downloadBlob(new Blob([content], { type: mime }), filename)
 }
 
 export default function App() {
@@ -41,7 +59,9 @@ export default function App() {
   const [invitingEditor, setInvitingEditor] = useState(false)
   const [removingEditorEmail, setRemovingEditorEmail] = useState(null)
   const [termsOpen, setTermsOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const searchWrapRef = useRef(null)
+  const exportWrapRef = useRef(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -113,6 +133,7 @@ export default function App() {
   useEffect(() => {
     const onDocMouseDown = (e) => {
       if (searchWrapRef.current && !searchWrapRef.current.contains(e.target)) setDropdownOpen(false)
+      if (exportWrapRef.current && !exportWrapRef.current.contains(e.target)) setExportOpen(false)
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
@@ -159,14 +180,36 @@ export default function App() {
     if (path) await supabase.storage.from('photos').remove([path])
   }
 
-  const exportData = () => {
-    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), people, relationships }, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `leung-family-tree-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+  const exportJson = () => downloadText(
+    JSON.stringify({ exportedAt: new Date().toISOString(), people, relationships }, null, 2),
+    `leung-family-tree-${dateStamp()}.json`, 'application/json'
+  )
+  const exportCsv = () => downloadText(peopleToCsv(people, relationships), `leung-family-tree-${dateStamp()}.csv`, 'text/csv;charset=utf-8')
+  const exportGedcom = () => downloadText(generateGedcom(people, relationships), `leung-family-tree-${dateStamp()}.ged`, 'text/plain;charset=utf-8')
+  const exportPng = async () => {
+    try {
+      const blob = await exportTreeAsPng(people, relationships)
+      downloadBlob(blob, `leung-family-tree-${dateStamp()}.png`)
+    } catch (err) { setErrorMsg(err.message || 'Failed to export image') }
+  }
+  const exportPdf = async () => {
+    let treeImage = null
+    try { treeImage = await exportTreeAsDataUrl(people, relationships) } catch { /* no members yet; directory-only PDF still works */ }
+    try {
+      // Lazy-loaded: jsPDF pulls in html2canvas/dompurify, which would
+      // otherwise bloat the initial bundle for everyone who never exports a PDF.
+      const { buildFamilyTreePdf } = await import('./lib/pdfExport')
+      const blob = buildFamilyTreePdf(people, relationships, treeImage)
+      downloadBlob(blob, `leung-family-tree-${dateStamp()}.pdf`)
+    } catch (err) { setErrorMsg(err.message || 'Failed to export PDF') }
+  }
+  const printReport = () => {
+    const win = window.open('', '_blank')
+    if (!win) return setErrorMsg('Please allow pop-ups to print the family tree')
+    win.document.write(buildPrintableHtml(people, relationships))
+    win.document.close()
+    win.focus()
+    win.print()
   }
 
   const confirmDelete = async () => {
@@ -216,7 +259,19 @@ export default function App() {
             </div>
           )}
         </div>
-        <button onClick={exportData} title="Download a backup of all family data as JSON" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>⬇ Export</button>
+        <div ref={exportWrapRef} style={{position:'relative',flexShrink:0}}>
+          <button onClick={() => setExportOpen(o => !o)} title="Export the family tree" style={{...btn,background:'#8a5a3a',color:'#fff'}}>⬇ Export</button>
+          {exportOpen && (
+            <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,background:'#fff',borderRadius:6,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',overflow:'hidden',zIndex:20,minWidth:220}}>
+              <ExportMenuItem label="JSON Backup" hint="Full data, for backup/restore" onClick={() => { exportJson(); setExportOpen(false) }} />
+              <ExportMenuItem label="CSV Spreadsheet" hint="Opens in Excel/Sheets" onClick={() => { exportCsv(); setExportOpen(false) }} />
+              <ExportMenuItem label="GEDCOM" hint="For genealogy software" onClick={() => { exportGedcom(); setExportOpen(false) }} />
+              <ExportMenuItem label="Tree Image (PNG)" hint="Snapshot of the whole tree" onClick={() => { setExportOpen(false); exportPng() }} />
+              <ExportMenuItem label="PDF Document" hint="Tree diagram + family directory" onClick={() => { setExportOpen(false); exportPdf() }} />
+              <ExportMenuItem label="Printable Page" hint="Opens a print-ready page" last onClick={() => { setExportOpen(false); printReport() }} />
+            </div>
+          )}
+        </div>
         <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
         {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#6b3a1f',flexShrink:0}}>+ Add Member</button>}
         {isAdmin && <button onClick={openEditors} style={{...btn,background:'#8a5a3a',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
@@ -347,5 +402,13 @@ export default function App() {
 
 function Info({label,value}) {
   return <div style={{display:'flex',gap:8}}><span style={{fontWeight:600,minWidth:60,color:'#6b7280',fontSize:13}}>{label}:</span><span style={{fontSize:13}}>{value}</span></div>
+}
+function ExportMenuItem({label,hint,onClick,last}) {
+  return (
+    <button onClick={onClick} style={{display:'block',width:'100%',textAlign:'left',padding:'10px 14px',background:'none',border:'none',borderBottom:last?'none':'1px solid #f3f4f6',cursor:'pointer'}}>
+      <div style={{fontSize:13,fontWeight:600,color:'#1f2937'}}>{label}</div>
+      <div style={{fontSize:11,color:'#9ca3af'}}>{hint}</div>
+    </button>
+  )
 }
 const btn = {padding:'8px 16px',borderRadius:6,border:'none',background:'#6b3a1f',color:'#fff',fontWeight:600,fontSize:14}

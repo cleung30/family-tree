@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildLayout } from './FamilyTree'
+import { buildLayout, buildTreeSvgMarkup } from './FamilyTree'
 
 describe('buildLayout', () => {
   it('returns no nodes or edges for an empty tree', () => {
@@ -73,5 +73,36 @@ describe('buildLayout', () => {
     const { nodes } = buildLayout(people, relationships)
     const idCounts = nodes.reduce((c, n) => ({ ...c, [n.id]: (c[n.id] || 0) + 1 }), {})
     expect(idCounts).toEqual({ 1: 1, 2: 1, 3: 1, 4: 1 })
+  })
+})
+
+describe('buildTreeSvgMarkup', () => {
+  it('returns null for an empty tree', () => {
+    expect(buildTreeSvgMarkup([], [])).toBeNull()
+  })
+
+  it('renders one <g> per node and colors edges by relationship type', () => {
+    const people = [
+      { id: 1, first_name: 'Parent', last_name: 'X', gender: 'm', birth_year: 1970 },
+      { id: 2, first_name: 'Spouse', last_name: 'X', gender: 'f', birth_year: 1972 },
+      { id: 3, first_name: 'Child', last_name: 'X', gender: 'f', birth_year: 2000 },
+    ]
+    const relationships = [
+      { person1_id: 1, person2_id: 2, type: 'spouse' },
+      { person1_id: 1, person2_id: 3, type: 'parent' },
+    ]
+    const svg = buildTreeSvgMarkup(people, relationships)
+    expect(svg.match(/<g transform/g)).toHaveLength(3)
+    expect(svg).toContain('stroke="#f59e0b"') // spouse edge
+    expect(svg).toContain('stroke="#6b7280"') // parent edge
+    expect(svg).toContain('Parent X')
+  })
+
+  it('escapes names so a stray XML character can\'t break the markup', () => {
+    const people = [{ id: 1, first_name: 'A&B', last_name: '<C>' }]
+    const svg = buildTreeSvgMarkup(people, [])
+    expect(svg).toContain('A&amp;B')
+    expect(svg).toContain('&lt;C&gt;')
+    expect(svg).not.toContain('<C>')
   })
 })
