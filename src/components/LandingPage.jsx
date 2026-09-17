@@ -35,7 +35,10 @@ export default function LandingPage({ people, onEnter, session }) {
 
 function SignIn() {
   const [email, setEmail] = useState('')
-  const [note, setNote] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [relation, setRelation] = useState('')
+  const [phone, setPhone] = useState('')
   const [phase, setPhase] = useState('email') // email | checking | sent | pending | denied | request | requesting | requested
   const [error, setError] = useState('')
 
@@ -55,8 +58,15 @@ function SignIn() {
   }
 
   const requestAccess = async () => {
+    if (!firstName.trim() || !lastName.trim() || !relation.trim()) return setError('First name, last name, and how you’re related are required')
     setError(''); setPhase('requesting')
-    const { error } = await supabase.from('access_requests').insert([{ email: normalizeEmail(email), note: note.trim() || null }])
+    const { error } = await supabase.from('access_requests').insert([{
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      relation: relation.trim(),
+      email: email.trim() ? normalizeEmail(email) : null,
+      phone: phone.trim() || null,
+    }])
     if (error) { setPhase('request'); return setError(error.message) }
     setPhase('requested')
   }
@@ -94,21 +104,22 @@ function SignIn() {
   }
 
   if (phase === 'request') {
+    const inp = {padding:'12px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:15}
     return (
       <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:10}}>
-        <p style={{fontSize:13,color:'#9ca3af',marginBottom:2}}>We don't recognize <strong>{normalizeEmail(email)}</strong> yet. Request access below, or ask a family member who's already signed in to invite you.</p>
-        <textarea
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          placeholder="How are you related to the family? (optional)"
-          rows={3}
-          style={{padding:'12px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:14,resize:'vertical'}}
-        />
+        <p style={{fontSize:13,color:'#9ca3af',marginBottom:2}}>{email.trim() ? <>We don't recognize <strong>{normalizeEmail(email)}</strong> yet. </> : null}Tell us who you are and an admin will review your request, or ask a family member who's already signed in to invite you.</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name *" style={inp} autoFocus />
+          <input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last name *" style={inp} />
+        </div>
+        <input value={relation} onChange={e => setRelation(e.target.value)} placeholder="How are you related to the family? *" style={inp} />
+        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (optional)" style={inp} />
+        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone number (optional)" style={inp} />
         {error && <div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6}}>{error}</div>}
         <button onClick={requestAccess} disabled={phase==='requesting'} style={{padding:'12px 24px',borderRadius:8,border:'none',background:'#4a0404',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer',opacity:phase==='requesting'?.6:1}}>
           {phase === 'requesting' ? 'Requesting…' : 'Request access'}
         </button>
-        <button onClick={() => { setPhase('email'); setError('') }} style={{background:'none',border:'none',color:'#9ca3af',fontSize:12,cursor:'pointer'}}>Use a different email</button>
+        <button onClick={() => { setPhase('email'); setError('') }} style={{background:'none',border:'none',color:'#9ca3af',fontSize:12,cursor:'pointer'}}>Back to sign in</button>
       </div>
     )
   }
@@ -129,6 +140,7 @@ function SignIn() {
       <button onClick={checkAndSend} disabled={phase==='checking'} style={{padding:'12px 24px',borderRadius:8,border:'none',background:'#4a0404',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer',opacity:phase==='checking'?.6:1}}>
         {phase === 'checking' ? 'Checking…' : 'Continue'}
       </button>
+      <button onClick={() => { setPhase('request'); setError('') }} style={{background:'none',border:'none',color:'#9ca3af',fontSize:12,cursor:'pointer'}}>Don't have access yet? Request it</button>
     </div>
   )
 }
