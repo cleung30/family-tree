@@ -39,7 +39,7 @@ export default function CalendarModal({ session, isEditor, people, onSignIn, onC
   const birthdayMap = useMemo(() => birthdaysByMonthDay(people || []), [people])
   const birthdaysOn = iso => (birthdayMap[iso.slice(5)] || []).map(p => ({
     id: `birthday-${p.id}`, isBirthday: true, event_date: iso, event_time: null,
-    title: birthdayTitle(p, Number(iso.slice(0, 4))), location: null, description: null,
+    title: birthdayTitle(p), location: null, description: null,
   }))
 
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
@@ -55,6 +55,7 @@ export default function CalendarModal({ session, isEditor, people, onSignIn, onC
     const d = new Date(viewYear, viewMonth + delta, 1)
     setViewYear(d.getFullYear())
     setViewMonth(d.getMonth())
+    setSelectedDate(toIsoDate(d))
   }
   const goToToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(todayIso) }
   const jumpTo = iso => {

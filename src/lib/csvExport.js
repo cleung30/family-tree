@@ -1,5 +1,6 @@
+import { OTHER_NAME_LANGUAGES } from './nameLanguage'
+
 const GENDER_LABEL = { m: 'Male', f: 'Female', o: 'Other' }
-const CHINESE_LANG_LABEL = { yue: 'Cantonese', cmn: 'Mandarin' }
 
 function csvEscape(value) {
   const s = value == null ? '' : String(value)
@@ -24,13 +25,13 @@ export function peopleToCsv(people, relationships) {
       ;(spousesOf[r.person2_id] ??= []).push(r.person1_id)
     }
   }
-  const headers = ['ID', 'First Name', 'Last Name', 'Chinese Name', 'Chinese Name Reading', 'Gender', 'Birth Date', 'Birth Year', 'Birth City', 'Death Date', 'Death Year', 'Phone', 'Email', 'Address', 'Socials', 'Parents', 'Spouses', 'Notes']
+  const headers = ['ID', 'First Name', 'Last Name', 'Chinese/Vietnamese Name', 'Chinese/Vietnamese Name Reading', 'Gender', 'Birth Date', 'Birth Year', 'Birth City', 'Death Date', 'Death Year', 'Phone', 'Email', 'Address', 'Socials', 'Parents', 'Spouses', 'Notes']
   const rows = people.map(p => [
     p.id,
     p.first_name || '',
     p.last_name || '',
     p.chinese_name || '',
-    CHINESE_LANG_LABEL[p.chinese_name_lang] || '',
+    OTHER_NAME_LANGUAGES[p.chinese_name_lang]?.label || '',
     GENDER_LABEL[p.gender] || '',
     p.birth_date || '',
     p.birth_year ?? '',

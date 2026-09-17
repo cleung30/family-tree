@@ -5,7 +5,7 @@ import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 import CalendarModal from './components/CalendarModal'
 import LandingPage from './components/LandingPage'
-import { isVietnameseName } from './lib/nameLanguage'
+import { isVietnameseName, OTHER_NAME_LANGUAGES } from './lib/nameLanguage'
 import { peopleToCsv } from './lib/csvExport'
 import { generateGedcom } from './lib/gedcom'
 import { buildPrintableHtml } from './lib/printableReport'
@@ -335,7 +335,7 @@ export default function App() {
             {selected.chinese_name && <p style={{textAlign:'center',color:'#888',fontSize:14}}>{selected.chinese_name}</p>}
             <div style={{textAlign:'center',marginTop:8,display:'flex',gap:8,justifyContent:'center'}}>
               <button onClick={() => speak(`${selected.first_name} ${selected.last_name}`, isVietnameseName(selected)?'vi-VN':'en-US')} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>{isVietnameseName(selected)?'🔊 Tiếng Việt':'🔊 English'}</button>
-              {selected.chinese_name && <button onClick={() => speak(selected.chinese_name, selected.chinese_name_lang==='cmn'?'zh-CN':'zh-HK')} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>{selected.chinese_name_lang==='cmn'?'🔊 普通話':'🔊 廣東話'}</button>}
+              {selected.chinese_name && <button onClick={() => speak(selected.chinese_name, (OTHER_NAME_LANGUAGES[selected.chinese_name_lang]||OTHER_NAME_LANGUAGES.yue).voice)} style={{...btn,background:'#6b7280',padding:'6px 14px',fontSize:13}}>{(OTHER_NAME_LANGUAGES[selected.chinese_name_lang]||OTHER_NAME_LANGUAGES.yue).speakLabel}</button>}
             </div>
             <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:8}}>
               {selected.birth_year && <Info label="Born" value={selected.birth_year} />}

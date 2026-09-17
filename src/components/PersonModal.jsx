@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { parsePartialDate, formatPartialDate } from '../lib/partialDate'
+import { OTHER_NAME_LANGUAGES } from '../lib/nameLanguage'
 const MAX_UPLOAD_BYTES=15*1024*1024
 async function resizeImage(file,maxDim=800,quality=0.85){
   const bitmap=await createImageBitmap(file)
@@ -115,12 +116,11 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
           </div>
           {isDuplicate&&<div style={{color:'#92400e',fontSize:13,background:'#fef3c7',padding:'8px 12px',borderRadius:6}}>⚠ "{`${form.first_name} ${form.last_name}`.trim()}" might already be in the tree — check this isn't a duplicate.</div>}
           <div>
-            <label style={lbl}>Chinese Name</label>
+            <label style={lbl}>Chinese / Vietnamese Name</label>
             <div style={{display:'flex',gap:8}}>
               <input value={form.chinese_name} onChange={e=>setForm(f=>({...f,chinese_name:e.target.value}))} style={{...inp,flex:1}}/>
               <select value={form.chinese_name_lang} onChange={e=>setForm(f=>({...f,chinese_name_lang:e.target.value}))} title="How this name should be pronounced" style={{...inp,width:150,flex:'0 0 auto'}}>
-                <option value="yue">Cantonese</option>
-                <option value="cmn">Mandarin</option>
+                {Object.entries(OTHER_NAME_LANGUAGES).map(([code,{label}])=><option key={code} value={code}>{label}</option>)}
               </select>
             </div>
           </div>
