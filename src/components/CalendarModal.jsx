@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { buildMonthGrid, monthLabel, toIsoDate, formatEventTime, upcomingEvents, birthdaysByMonthDay, birthdayTitle, nextBirthdayDate } from '../lib/calendarGrid'
+import { buildMonthGrid, monthLabel, toIsoDate, formatEventTime, birthdaysByMonthDay, birthdayTitle } from '../lib/calendarGrid'
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const emptyForm = { title: '', event_date: '', event_time: '', location: '', description: '' }
@@ -41,16 +41,15 @@ export default function CalendarModal({ session, isEditor, people, onSignIn, onC
     id: `birthday-${p.id}`, isBirthday: true, event_date: iso, event_time: null,
     title: birthdayTitle(p, Number(iso.slice(0, 4))), location: null, description: null,
   }))
-  const upcomingBirthdays = useMemo(() => (people || [])
-    .filter(p => p.birth_date)
-    .map(p => {
-      const date = nextBirthdayDate(p, todayIso)
-      return { id: `birthday-${p.id}`, isBirthday: true, event_date: date, event_time: null, title: birthdayTitle(p, Number(date.slice(0, 4))) }
-    }), [people, todayIso])
 
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
   const dayEvents = [...(eventsByDate[selectedDate] || []), ...birthdaysOn(selectedDate)]
-  const nextUp = useMemo(() => upcomingEvents([...events, ...upcomingBirthdays], todayIso, 5), [events, upcomingBirthdays, todayIso])
+  const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`
+  const monthHighlights = useMemo(() => {
+    const monthBirthdays = grid.filter(c => c.inMonth).flatMap(c => birthdaysOn(c.iso))
+    return [...events.filter(e => e.event_date.startsWith(monthPrefix)), ...monthBirthdays]
+      .sort((a, b) => a.event_date === b.event_date ? (a.event_time || '').localeCompare(b.event_time || '') : a.event_date.localeCompare(b.event_date))
+  }, [events, grid, monthPrefix])
 
   const changeMonth = delta => {
     const d = new Date(viewYear, viewMonth + delta, 1)
@@ -119,9 +118,9 @@ export default function CalendarModal({ session, isEditor, people, onSignIn, onC
 
         {error && <div style={{ color: '#dc2626', fontSize: 13, background: '#fee2e2', padding: '8px 12px', borderRadius: 6, marginBottom: 12 }}>{error}</div>}
 
-        {!loading && !!nextUp.length && (
+        {!loading && !!monthHighlights.length && (
           <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 12, paddingBottom: 2 }}>
-            {nextUp.map(e => (
+            {monthHighlights.map(e => (
               <button key={e.id} onClick={() => jumpTo(e.event_date)} style={{ flexShrink: 0, textAlign: 'left', padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: e.event_date === selectedDate ? '#fdecec' : '#f9fafb', cursor: 'pointer' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#7a2e2e', textTransform: 'uppercase' }}>{new Date(e.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: '#1f2937', whiteSpace: 'nowrap' }}>{e.isBirthday ? '🎂 ' : ''}{e.title}</div>
