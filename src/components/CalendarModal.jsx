@@ -55,6 +55,7 @@ export default function CalendarModal({ session, isEditor, people, onSignIn, onC
     const d = new Date(viewYear, viewMonth + delta, 1)
     setViewYear(d.getFullYear())
     setViewMonth(d.getMonth())
+    setSelectedDate(toIsoDate(d))
   }
   const goToToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); setSelectedDate(todayIso) }
   const jumpTo = iso => {
