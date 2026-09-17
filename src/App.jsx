@@ -45,13 +45,9 @@ export default function App() {
   const [confirmTarget, setConfirmTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [session, setSession] = useState(null)
+  const [authChecking, setAuthChecking] = useState(true)
   const [isEditor, setIsEditor] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [authOpen, setAuthOpen] = useState(false)
-  const [authEmail, setAuthEmail] = useState('')
-  const [authSending, setAuthSending] = useState(false)
-  const [authSent, setAuthSent] = useState(false)
-  const [authError, setAuthError] = useState('')
   const [editorsOpen, setEditorsOpen] = useState(false)
   const [editorsList, setEditorsList] = useState([])
   const [editorsLoading, setEditorsLoading] = useState(false)
@@ -78,7 +74,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthChecking(false) })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => setSession(sess))
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -89,16 +85,11 @@ export default function App() {
       .then(({ data }) => { setIsEditor(!!data); setIsAdmin(data?.role === 'admin') })
   }, [session])
 
-  const openAuth = () => { setAuthOpen(true); setAuthSent(false); setAuthEmail(''); setAuthError('') }
-  const sendMagicLink = async () => {
-    if (!authEmail.trim()) return setAuthError('Enter your email')
-    setAuthSending(true); setAuthError('')
-    const { error } = await supabase.auth.signInWithOtp({ email: authEmail.trim(), options: { emailRedirectTo: window.location.origin } })
-    setAuthSending(false)
-    if (error) return setAuthError(error.message)
-    setAuthSent(true)
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    setSelected(null); setModalMode(null); setShowLanding(true)
+    setPeople([]); setRelationships([])
   }
-  const signOut = async () => { await supabase.auth.signOut(); setSelected(null); setModalMode(null) }
 
   const openEditors = async () => {
     setEditorsOpen(true); setEditorsError(''); setNewEditorEmail(''); setNewEditorRole('editor')
@@ -166,7 +157,7 @@ export default function App() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (session) load() }, [session, load])
 
   const handleSave = async (data) => {
     const previousPhoto = modalMode === 'edit' ? selected?.photo_url : null
@@ -238,9 +229,11 @@ export default function App() {
     setSelected(null); load()
   }
 
+  if (authChecking) return <div style={{minHeight:'100vh',background:'#faf7f2'}} />
+  if (!session) return <LandingPage people={[]} session={null} />
   if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontSize:18,color:'#888'}}>Loading family tree…</div>
   if (error) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12}}><div style={{color:'#c00'}}>{error}</div><button onClick={load} style={btn}>Retry</button></div>
-  if (showLanding) return <LandingPage people={people} onEnter={() => setShowLanding(false)} />
+  if (showLanding) return <LandingPage people={people} session={session} onEnter={() => setShowLanding(false)} />
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100vh'}}>
@@ -297,11 +290,7 @@ export default function App() {
                 <ExportMenuItem label="📅 Family Calendar" onClick={() => { setCalendarOpen(true); setMoreOpen(false) }} />
                 {isEditor && <ExportMenuItem label="+ Add Member" onClick={() => { setSelected(null); setModalMode('add'); setMoreOpen(false) }} />}
                 {isAdmin && <ExportMenuItem label="👥 Manage Editors" onClick={() => { openEditors(); setMoreOpen(false) }} />}
-                {session ? (
-                  <ExportMenuItem label={`${isEditor?'✓ ':''}${session.user.email}`} hint="Signed in · tap to sign out" last onClick={() => { signOut(); setMoreOpen(false) }} />
-                ) : (
-                  <ExportMenuItem label="Sign in to edit" last onClick={() => { openAuth(); setMoreOpen(false) }} />
-                )}
+                <ExportMenuItem label={`${isEditor?'✓ ':''}${session.user.email}`} hint="Signed in · tap to sign out" last onClick={() => { signOut(); setMoreOpen(false) }} />
               </div>
             )}
           </div>
@@ -311,11 +300,7 @@ export default function App() {
             <button onClick={() => setCalendarOpen(true)} title="View and add family events" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>📅 Calendar</button>
             {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
             {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
-            {session ? (
-              <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
-            ) : (
-              <button onClick={openAuth} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>Sign in to edit</button>
-            )}
+            <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
           </>
         )}
       </header>
@@ -376,38 +361,12 @@ export default function App() {
           </div>
         </div>
       )}
-      {authOpen && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && setAuthOpen(false)}>
-          <div style={{background:'#fff',borderRadius:12,width:'min(360px, 90vw)',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
-            <h2 style={{fontSize:16,fontWeight:700,marginBottom:8}}>Sign in to edit</h2>
-            {authSent ? (
-              <>
-                <p style={{fontSize:14,color:'#6b7280',marginBottom:20}}>Check <strong>{authEmail}</strong> for a sign-in link.</p>
-                <div style={{display:'flex',justifyContent:'flex-end'}}>
-                  <button onClick={() => setAuthOpen(false)} style={{...btn,background:'#f3f4f6',color:'#374151'}}>Close</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p style={{fontSize:14,color:'#6b7280',marginBottom:12}}>Only people on the family editor list can make changes. Everyone else can still browse the tree.</p>
-                <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && sendMagicLink()} placeholder="you@example.com" style={{width:'100%',padding:'8px 10px',border:'1px solid #d1d5db',borderRadius:6,fontSize:14,marginBottom:8}} autoFocus />
-                {authError && <div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6,marginBottom:8}}>{authError}</div>}
-                <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                  <button onClick={() => setAuthOpen(false)} disabled={authSending} style={{...btn,background:'#f3f4f6',color:'#374151',opacity:authSending?.6:1}}>Cancel</button>
-                  <button onClick={sendMagicLink} disabled={authSending} style={{...btn,opacity:authSending?.6:1}}>{authSending?'Sending…':'Send magic link'}</button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
       {termsOpen && <FamilyTermsModal people={people} relationships={relationships} onClose={() => setTermsOpen(false)} />}
       {calendarOpen && (
         <CalendarModal
           session={session}
           isEditor={isEditor}
           people={people}
-          onSignIn={() => { setCalendarOpen(false); openAuth() }}
           onClose={() => setCalendarOpen(false)}
         />
       )}
