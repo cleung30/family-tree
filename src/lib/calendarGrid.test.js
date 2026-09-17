@@ -57,16 +57,11 @@ describe('birthdaysByMonthDay', () => {
 })
 
 describe('birthdayTitle', () => {
-  it('includes the age turned for a living person', () => {
-    const person = { first_name: 'Calvin', last_name: 'Leung', birth_date: '1990-09-25' }
-    expect(birthdayTitle(person, 2026)).toBe('Calvin Leung turns 36')
+  it('never includes the age, regardless of birth or death year', () => {
+    expect(birthdayTitle({ first_name: 'Calvin', last_name: 'Leung', birth_date: '1990-09-25' })).toBe("Calvin Leung's Birthday")
+    expect(birthdayTitle({ first_name: 'Ah', last_name: 'Ma', birth_date: '1945-03-10', death_year: 2020 })).toBe("Ah Ma's Birthday")
   })
-  it('omits the age when the birth year is the same as the target year', () => {
-    const person = { first_name: 'Baby', last_name: 'Leung', birth_date: '2026-09-25' }
-    expect(birthdayTitle(person, 2026)).toBe("Baby Leung's Birthday")
-  })
-  it('omits the age for someone who has died', () => {
-    const person = { first_name: 'Ah', last_name: 'Ma', birth_date: '1945-03-10', death_year: 2020 }
-    expect(birthdayTitle(person, 2026)).toBe("Ah Ma's Birthday")
+  it('handles a missing last name', () => {
+    expect(birthdayTitle({ first_name: 'Cher', last_name: '', birth_date: '1946-05-20' })).toBe("Cher's Birthday")
   })
 })

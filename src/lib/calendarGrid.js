@@ -44,9 +44,9 @@ export function birthdaysByMonthDay(people) {
   return map
 }
 
-export function birthdayTitle(person, year) {
+// Deliberately omits their age — not everyone wants that broadcast on a
+// calendar the whole family can see.
+export function birthdayTitle(person) {
   const name = `${person.first_name} ${person.last_name || ''}`.trim()
-  if (person.death_year) return `${name}'s Birthday`
-  const age = year - Number(person.birth_date.slice(0, 4))
-  return age > 0 ? `${name} turns ${age}` : `${name}'s Birthday`
+  return `${name}'s Birthday`
 }
