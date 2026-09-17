@@ -5,7 +5,7 @@ import { buildMonthGrid, monthLabel, toIsoDate, formatEventTime, birthdaysByMont
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const emptyForm = { title: '', event_date: '', event_time: '', location: '', description: '' }
 
-export default function CalendarModal({ session, isEditor, people, onSignIn, onClose }) {
+export default function CalendarModal({ session, isEditor, people, onClose }) {
   const today = useMemo(() => new Date(), [])
   const todayIso = toIsoDate(today)
   const [viewYear, setViewYear] = useState(today.getFullYear())
@@ -177,11 +177,7 @@ export default function CalendarModal({ session, isEditor, people, onSignIn, onC
         <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 }}>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>{selectedLabel}</h3>
-            {session ? (
-              !formOpen && <button onClick={openAdd} style={{ ...bt, flexShrink: 0 }}>+ Add Event</button>
-            ) : (
-              <button onClick={onSignIn} style={{ ...bt, background: '#f3f4f6', color: '#374151', flexShrink: 0 }}>Sign in to add</button>
-            )}
+            {!formOpen && <button onClick={openAdd} style={{ ...bt, flexShrink: 0 }}>+ Add Event</button>}
           </div>
 
           {formOpen && (

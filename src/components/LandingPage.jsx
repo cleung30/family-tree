@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { earliestBirthYear, survivingCount } from '../lib/treeStats'
+import { supabase } from '../lib/supabase'
 
-export default function LandingPage({ people, onEnter }) {
+export default function LandingPage({ people, onEnter, session }) {
   const since = earliestBirthYear(people)
   const living = survivingCount(people)
   return (
@@ -10,15 +12,64 @@ export default function LandingPage({ people, onEnter }) {
       <p style={{fontSize:16,color:'#6b7280',maxWidth:440,lineHeight:1.6,marginBottom:24}}>
         A living record of our family — who we are, where we came from, and how we're all connected. Explore the tree, look up what to call a relative, and help keep it up to date.
       </p>
-      {people.length > 0 && (
-        <div style={{display:'flex',gap:24,marginBottom:32,flexWrap:'wrap',justifyContent:'center'}}>
-          <Stat value={people.length} label="family members" />
-          {living > 0 && <Stat value={living} label="with us today" />}
-          {since != null && <Stat value={since} label="earliest record" />}
-        </div>
+      {session ? (
+        <>
+          {people.length > 0 && (
+            <div style={{display:'flex',gap:24,marginBottom:32,flexWrap:'wrap',justifyContent:'center'}}>
+              <Stat value={people.length} label="family members" />
+              {living > 0 && <Stat value={living} label="with us today" />}
+              {since != null && <Stat value={since} label="earliest record" />}
+            </div>
+          )}
+          <button onClick={onEnter} style={{padding:'14px 32px',borderRadius:8,border:'none',background:'#4a0404',color:'#fff',fontWeight:700,fontSize:16,cursor:'pointer',boxShadow:'0 4px 12px rgba(74,4,4,0.25)'}}>
+            View the Family Tree →
+          </button>
+        </>
+      ) : (
+        <SignIn />
       )}
-      <button onClick={onEnter} style={{padding:'14px 32px',borderRadius:8,border:'none',background:'#4a0404',color:'#fff',fontWeight:700,fontSize:16,cursor:'pointer',boxShadow:'0 4px 12px rgba(74,4,4,0.25)'}}>
-        View the Family Tree →
+    </div>
+  )
+}
+
+function SignIn() {
+  const [email, setEmail] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+
+  const send = async () => {
+    if (!email.trim()) return setError('Enter your email')
+    setSending(true); setError('')
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } })
+    setSending(false)
+    if (error) return setError(error.message)
+    setSent(true)
+  }
+
+  if (sent) {
+    return (
+      <div style={{width:'100%',maxWidth:340}}>
+        <p style={{fontSize:14,color:'#6b7280'}}>Check <strong>{email}</strong> for a sign-in link.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:10}}>
+      <p style={{fontSize:13,color:'#9ca3af',marginBottom:2}}>This tree holds personal information about the family, so signing in is required to view it.</p>
+      <input
+        type="email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && send()}
+        placeholder="you@example.com"
+        style={{padding:'12px 14px',border:'1px solid #d1d5db',borderRadius:8,fontSize:15}}
+        autoFocus
+      />
+      {error && <div style={{color:'#dc2626',fontSize:13,background:'#fee2e2',padding:'8px 12px',borderRadius:6}}>{error}</div>}
+      <button onClick={send} disabled={sending} style={{padding:'12px 24px',borderRadius:8,border:'none',background:'#4a0404',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer',opacity:sending?.6:1}}>
+        {sending ? 'Sending…' : 'Send sign-in link'}
       </button>
     </div>
   )
