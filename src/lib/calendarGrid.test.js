@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildMonthGrid, monthLabel, formatEventTime, upcomingEvents } from './calendarGrid'
+import { buildMonthGrid, monthLabel, formatEventTime, upcomingEvents, birthdaysByMonthDay, birthdayTitle, nextBirthdayDate } from './calendarGrid'
 
 describe('buildMonthGrid', () => {
   it('returns exactly 4 full weeks when the month starts on Sunday and has 28 days', () => {
@@ -54,5 +54,50 @@ describe('upcomingEvents', () => {
   })
   it('limits the result', () => {
     expect(upcomingEvents(events, '2026-09-01', 2)).toHaveLength(2)
+  })
+})
+
+describe('birthdaysByMonthDay', () => {
+  it('groups people by month-day, ignoring people without a birth_date', () => {
+    const people = [
+      { id: 1, birth_date: '1990-09-25' },
+      { id: 2, birth_date: '1955-09-25' },
+      { id: 3, birth_date: '2001-01-01' },
+      { id: 4, birth_date: null },
+    ]
+    const map = birthdaysByMonthDay(people)
+    expect(map['09-25'].map(p => p.id)).toEqual([1, 2])
+    expect(map['01-01'].map(p => p.id)).toEqual([3])
+    expect(Object.keys(map)).not.toContain('undefined')
+  })
+})
+
+describe('birthdayTitle', () => {
+  it('includes the age turned for a living person', () => {
+    const person = { first_name: 'Calvin', last_name: 'Leung', birth_date: '1990-09-25' }
+    expect(birthdayTitle(person, 2026)).toBe('Calvin Leung turns 36')
+  })
+  it('omits the age when the birth year is the same as the target year', () => {
+    const person = { first_name: 'Baby', last_name: 'Leung', birth_date: '2026-09-25' }
+    expect(birthdayTitle(person, 2026)).toBe("Baby Leung's Birthday")
+  })
+  it('omits the age for someone who has died', () => {
+    const person = { first_name: 'Ah', last_name: 'Ma', birth_date: '1945-03-10', death_year: 2020 }
+    expect(birthdayTitle(person, 2026)).toBe("Ah Ma's Birthday")
+  })
+})
+
+describe('nextBirthdayDate', () => {
+  it('returns null when there is no birth_date', () => {
+    expect(nextBirthdayDate({}, '2026-09-17')).toBeNull()
+  })
+  it('uses this year when the birthday has not passed yet', () => {
+    expect(nextBirthdayDate({ birth_date: '1990-09-25' }, '2026-09-17')).toBe('2026-09-25')
+  })
+  it('includes today when the birthday is today', () => {
+    expect(nextBirthdayDate({ birth_date: '1990-09-17' }, '2026-09-17')).toBe('2026-09-17')
+  })
+  it('rolls over to next year once the birthday has passed', () => {
+    expect(nextBirthdayDate({ birth_date: '1990-01-05' }, '2026-09-17')).toBe('2027-01-05')
   })
 })

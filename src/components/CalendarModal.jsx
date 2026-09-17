@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { buildMonthGrid, monthLabel, toIsoDate, formatEventTime, upcomingEvents } from '../lib/calendarGrid'
+import { buildMonthGrid, monthLabel, toIsoDate, formatEventTime, upcomingEvents, birthdaysByMonthDay, birthdayTitle, nextBirthdayDate } from '../lib/calendarGrid'
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const emptyForm = { title: '', event_date: '', event_time: '', location: '', description: '' }
 
-export default function CalendarModal({ session, isEditor, onSignIn, onClose }) {
+export default function CalendarModal({ session, isEditor, people, onSignIn, onClose }) {
   const today = useMemo(() => new Date(), [])
   const todayIso = toIsoDate(today)
   const [viewYear, setViewYear] = useState(today.getFullYear())
@@ -36,9 +36,21 @@ export default function CalendarModal({ session, isEditor, onSignIn, onClose }) 
     return map
   }, [events])
 
+  const birthdayMap = useMemo(() => birthdaysByMonthDay(people || []), [people])
+  const birthdaysOn = iso => (birthdayMap[iso.slice(5)] || []).map(p => ({
+    id: `birthday-${p.id}`, isBirthday: true, event_date: iso, event_time: null,
+    title: birthdayTitle(p, Number(iso.slice(0, 4))), location: null, description: null,
+  }))
+  const upcomingBirthdays = useMemo(() => (people || [])
+    .filter(p => p.birth_date)
+    .map(p => {
+      const date = nextBirthdayDate(p, todayIso)
+      return { id: `birthday-${p.id}`, isBirthday: true, event_date: date, event_time: null, title: birthdayTitle(p, Number(date.slice(0, 4))) }
+    }), [people, todayIso])
+
   const grid = useMemo(() => buildMonthGrid(viewYear, viewMonth), [viewYear, viewMonth])
-  const dayEvents = eventsByDate[selectedDate] || []
-  const nextUp = useMemo(() => upcomingEvents(events, todayIso, 5), [events, todayIso])
+  const dayEvents = [...(eventsByDate[selectedDate] || []), ...birthdaysOn(selectedDate)]
+  const nextUp = useMemo(() => upcomingEvents([...events, ...upcomingBirthdays], todayIso, 5), [events, upcomingBirthdays, todayIso])
 
   const changeMonth = delta => {
     const d = new Date(viewYear, viewMonth + delta, 1)
@@ -103,7 +115,7 @@ export default function CalendarModal({ session, isEditor, onSignIn, onClose }) 
           <h2 style={{ fontSize: 16, fontWeight: 700 }}>📅 Family Calendar</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, color: '#6b7280', cursor: 'pointer' }}>✕</button>
         </div>
-        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Birthdays, reunions, and other family events — shared with everyone who visits the tree.</p>
+        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>Reunions and other family events, plus birthdays added automatically from everyone's profile — shared with everyone who visits the tree.</p>
 
         {error && <div style={{ color: '#dc2626', fontSize: 13, background: '#fee2e2', padding: '8px 12px', borderRadius: 6, marginBottom: 12 }}>{error}</div>}
 
@@ -112,7 +124,7 @@ export default function CalendarModal({ session, isEditor, onSignIn, onClose }) 
             {nextUp.map(e => (
               <button key={e.id} onClick={() => jumpTo(e.event_date)} style={{ flexShrink: 0, textAlign: 'left', padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb', background: e.event_date === selectedDate ? '#fdecec' : '#f9fafb', cursor: 'pointer' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#7a2e2e', textTransform: 'uppercase' }}>{new Date(e.event_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#1f2937', whiteSpace: 'nowrap' }}>{e.title}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#1f2937', whiteSpace: 'nowrap' }}>{e.isBirthday ? '🎂 ' : ''}{e.title}</div>
               </button>
             ))}
           </div>
@@ -137,6 +149,7 @@ export default function CalendarModal({ session, isEditor, onSignIn, onClose }) 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 16 }}>
               {grid.map(cell => {
                 const hasEvents = (eventsByDate[cell.iso] || []).length > 0
+                const hasBirthday = !!birthdayMap[cell.iso.slice(5)]
                 const isSelected = cell.iso === selectedDate
                 const isToday = cell.iso === todayIso
                 return (
@@ -148,7 +161,12 @@ export default function CalendarModal({ session, isEditor, onSignIn, onClose }) 
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: 0,
                   }}>
                     <span>{cell.date.getDate()}</span>
-                    {hasEvents && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : '#7a2e2e' }} />}
+                    {(hasEvents || hasBirthday) && (
+                      <span style={{ display: 'flex', gap: 3 }}>
+                        {hasEvents && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : '#7a2e2e' }} />}
+                        {hasBirthday && <span style={{ width: 4, height: 4, borderRadius: '50%', background: isSelected ? '#fff' : '#d97706' }} />}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -186,14 +204,14 @@ export default function CalendarModal({ session, isEditor, onSignIn, onClose }) 
           {dayEvents.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {dayEvents.map(e => (
-                <div key={e.id} style={{ padding: '10px 12px', background: '#f9fafb', borderRadius: 8 }}>
+                <div key={e.id} style={{ padding: '10px 12px', background: e.isBirthday ? '#fffbeb' : '#f9fafb', borderRadius: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{e.title}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700 }}>{e.isBirthday ? '🎂 ' : ''}{e.title}</div>
                       <div style={{ fontSize: 12, color: '#6b7280' }}>{[formatEventTime(e.event_time), e.location].filter(Boolean).join(' · ')}</div>
                       {e.description && <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>{e.description}</div>}
                     </div>
-                    {canManage(e) && (
+                    {!e.isBirthday && canManage(e) && (
                       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                         <button onClick={() => openEdit(e)} style={{ background: 'none', border: 'none', color: '#4a0404', fontSize: 12, cursor: 'pointer' }}>Edit</button>
                         <button onClick={() => deleteEvent(e.id)} disabled={deletingId === e.id} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: 12, cursor: 'pointer', opacity: deletingId === e.id ? .6 : 1 }}>{deletingId === e.id ? 'Removing…' : 'Delete'}</button>
