@@ -39,7 +39,7 @@ export function buildFamilyTreePdf(people, relationships, treeImage) {
   autoTable(doc, {
     startY: 56,
     margin: { left: MARGIN, right: MARGIN },
-    head: [['Name', 'Chinese Name', 'Born', 'Died', 'Relationships', 'Notes']],
+    head: [['Name', 'Chinese/Vietnamese Name', 'Born', 'Died', 'Relationships', 'Notes']],
     body: rows.map(r => [r.name, r.chineseName, r.born, r.died, r.relationships.join('\n'), r.notes]),
     styles: { fontSize: 8, cellPadding: 4, valign: 'top' },
     headStyles: { fillColor: '#4a0404' },

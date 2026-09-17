@@ -60,7 +60,7 @@ export function buildPrintableHtml(people, relationships) {
   <h1>Leung Family Tree</h1>
   <p class="meta">${rows.length} members · generated ${esc(new Date().toLocaleString())}</p>
   <table>
-    <thead><tr><th>Name</th><th>Chinese Name</th><th>Born</th><th>Died</th><th>Relationships</th><th>Notes</th></tr></thead>
+    <thead><tr><th>Name</th><th>Chinese/Vietnamese Name</th><th>Born</th><th>Died</th><th>Relationships</th><th>Notes</th></tr></thead>
     <tbody>${bodyRows}</tbody>
   </table>
 </body>
