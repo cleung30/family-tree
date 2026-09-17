@@ -5,6 +5,7 @@ import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 import CalendarModal from './components/CalendarModal'
 import LandingPage from './components/LandingPage'
+import ClaimProfile from './components/ClaimProfile'
 import { isVietnameseName, OTHER_NAME_LANGUAGES } from './lib/nameLanguage'
 import { peopleToCsv } from './lib/csvExport'
 import { generateGedcom } from './lib/gedcom'
@@ -118,6 +119,8 @@ export default function App() {
     if (error) return setEditorsError(error.message)
     setEditorsList(list => list.filter(e => e.email !== email))
   }
+
+  const myProfile = useMemo(() => people.find(p => p.claimed_by === session?.user.email) || null, [people, session])
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -233,6 +236,7 @@ export default function App() {
   if (!session) return <LandingPage people={[]} session={null} />
   if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontSize:18,color:'#888'}}>Loading family tree…</div>
   if (error) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',flexDirection:'column',gap:12}}><div style={{color:'#c00'}}>{error}</div><button onClick={load} style={btn}>Retry</button></div>
+  if (!myProfile) return <ClaimProfile people={people} session={session} onClaimed={load} onSignOut={signOut} />
   if (showLanding) return <LandingPage people={people} session={session} onEnter={() => setShowLanding(false)} />
 
   return (
