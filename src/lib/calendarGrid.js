@@ -32,15 +32,6 @@ export function formatEventTime(time) {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
-export function upcomingEvents(events, fromIso, limit = 5) {
-  return events
-    .filter(e => e.event_date >= fromIso)
-    .sort((a, b) => a.event_date === b.event_date
-      ? (a.event_time || '').localeCompare(b.event_time || '')
-      : a.event_date.localeCompare(b.event_date))
-    .slice(0, limit)
-}
-
 // Groups people by their birthday's "MM-DD", ignoring the year, so the
 // calendar can look up who was born on a given day of any year.
 export function birthdaysByMonthDay(people) {
@@ -58,14 +49,4 @@ export function birthdayTitle(person, year) {
   if (person.death_year) return `${name}'s Birthday`
   const age = year - Number(person.birth_date.slice(0, 4))
   return age > 0 ? `${name} turns ${age}` : `${name}'s Birthday`
-}
-
-// The next occurrence of a person's birthday on/after fromIso, rolling
-// over to next year once this year's date has already passed.
-export function nextBirthdayDate(person, fromIso) {
-  if (!person.birth_date) return null
-  const monthDay = person.birth_date.slice(5)
-  const fromYear = Number(fromIso.slice(0, 4))
-  const candidate = `${fromYear}-${monthDay}`
-  return candidate < fromIso ? `${fromYear + 1}-${monthDay}` : candidate
 }
