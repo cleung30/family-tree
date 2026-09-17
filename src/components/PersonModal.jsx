@@ -10,7 +10,7 @@ async function resizeImage(file,maxDim=800,quality=0.85){
   return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality))
 }
 export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onDeletePhoto,onRelationshipSave,onRelationshipDelete}){
-  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',birth_year:'',death_year:'',gender:'m',notes:'',photo_url:''})
+  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',birth_year:'',death_year:'',gender:'m',email:'',phone:'',address:'',notes:'',photo_url:''})
   const [relType,setRelType]=useState('parent')
   const [relTarget,setRelTarget]=useState('')
   const [saving,setSaving]=useState(false)
@@ -24,7 +24,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   // is left alone here — App only deletes that one once a save confirms
   // it's no longer referenced.
   const pendingPhotoUrlRef=useRef(null)
-  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
+  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',email:person.email||'',phone:person.phone||'',address:person.address||'',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
   const isDuplicate=!person&&form.first_name.trim()&&people.some(p=>
@@ -118,6 +118,11 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
             <div><label style={lbl}>Death Year</label><input type="number" value={form.death_year} onChange={e=>setForm(f=>({...f,death_year:e.target.value}))} style={inp}/></div>
           </div>
           <div><label style={lbl}>Gender</label><select value={form.gender} onChange={e=>setForm(f=>({...f,gender:e.target.value}))} style={inp}><option value="m">Male</option><option value="f">Female</option><option value="o">Other</option></select></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div><label style={lbl}>Email</label><input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} style={inp}/></div>
+            <div><label style={lbl}>Phone</label><input type="tel" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} style={inp}/></div>
+          </div>
+          <div><label style={lbl}>Address</label><input value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} style={inp}/></div>
           <div><label style={lbl}>Notes</label><textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={3} style={{...inp,resize:'vertical'}}/></div>
           {person&&(
             <div style={{borderTop:'1px solid #e5e7eb',paddingTop:14}}>

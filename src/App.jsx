@@ -337,6 +337,9 @@ export default function App() {
               {selected.birth_year && <Info label="Born" value={selected.birth_year} />}
               {selected.death_year && <Info label="Died" value={selected.death_year} />}
               {selected.gender && <Info label="Gender" value={{m:'Male',f:'Female',o:'Other'}[selected.gender]||selected.gender} />}
+              {selected.email && <Info label="Email" value={selected.email} />}
+              {selected.phone && <Info label="Phone" value={selected.phone} />}
+              {selected.address && <Info label="Address" value={selected.address} />}
               {selected.notes && <Info label="Notes" value={selected.notes} />}
             </div>
             {isEditor && (
