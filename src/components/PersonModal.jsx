@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { parsePartialDate, formatPartialDate } from '../lib/partialDate'
 const MAX_UPLOAD_BYTES=15*1024*1024
 async function resizeImage(file,maxDim=800,quality=0.85){
   const bitmap=await createImageBitmap(file)
@@ -10,7 +11,9 @@ async function resizeImage(file,maxDim=800,quality=0.85){
   return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality))
 }
 export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onDeletePhoto,onRelationshipSave,onRelationshipDelete}){
-  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',birth_date:'',birth_year:'',death_year:'',gender:'m',email:'',phone:'',address:'',notes:'',photo_url:''})
+  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',gender:'m',email:'',phone:'',address:'',notes:'',photo_url:''})
+  const [birthInput,setBirthInput]=useState('')
+  const [deathInput,setDeathInput]=useState('')
   const [relType,setRelType]=useState('parent')
   const [relTarget,setRelTarget]=useState('')
   const [saving,setSaving]=useState(false)
@@ -24,7 +27,11 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   // is left alone here — App only deletes that one once a save confirms
   // it's no longer referenced.
   const pendingPhotoUrlRef=useRef(null)
-  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',birth_date:person.birth_date||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',email:person.email||'',phone:person.phone||'',address:person.address||'',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
+  useEffect(()=>{if(person){
+    setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',gender:person.gender||'m',email:person.email||'',phone:person.phone||'',address:person.address||'',notes:person.notes||'',photo_url:person.photo_url||''})
+    setBirthInput(formatPartialDate(person.birth_date,person.birth_year))
+    setDeathInput(formatPartialDate(person.death_date,person.death_year))
+  }},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
   const isDuplicate=!person&&form.first_name.trim()&&people.some(p=>
@@ -55,8 +62,12 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   }
   const handleSave=async()=>{
     if(!form.first_name.trim())return setFormError('First name is required')
+    const birth=parsePartialDate(birthInput)
+    if(!birth)return setFormError('Enter a birthdate as a year (e.g. 1945) or a full date (e.g. 1945-03-10)')
+    const death=parsePartialDate(deathInput)
+    if(!death)return setFormError('Enter a death date as a year (e.g. 1945) or a full date (e.g. 1945-03-10)')
     setFormError('');setSaving(true)
-    await onSave({...form,birth_date:form.birth_date||null,birth_year:form.birth_year?Number(form.birth_year):null,death_year:form.death_year?Number(form.death_year):null})
+    await onSave({...form,birth_date:birth.date,birth_year:birth.year,death_date:death.date,death_year:death.year})
     setSaving(false)
   }
   const addRel=async()=>{
@@ -114,16 +125,11 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
             </div>
           </div>
           <div>
-            <label style={lbl}>Birthday</label>
-            <input type="date" value={form.birth_date} onChange={e=>{
-              const v=e.target.value
-              setForm(f=>({...f,birth_date:v,birth_year:v?String(Number(v.slice(0,4))):f.birth_year}))
-            }} style={inp}/>
-            <p style={{fontSize:11,color:'#9ca3af',marginTop:4}}>Adds this person to the shared family calendar every year. If you only know the year, leave this blank and use Birth Year below.</p>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            <div><label style={lbl}>Birth Year</label><input type="number" value={form.birth_year} onChange={e=>setForm(f=>({...f,birth_year:e.target.value}))} style={inp}/></div>
-            <div><label style={lbl}>Death Year</label><input type="number" value={form.death_year} onChange={e=>setForm(f=>({...f,death_year:e.target.value}))} style={inp}/></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+              <div><label style={lbl}>Birthdate</label><input value={birthInput} onChange={e=>setBirthInput(e.target.value)} placeholder="1945 or 1945-03-10" style={inp}/></div>
+              <div><label style={lbl}>Death Date</label><input value={deathInput} onChange={e=>setDeathInput(e.target.value)} placeholder="1945 or 1945-03-10" style={inp}/></div>
+            </div>
+            <p style={{fontSize:11,color:'#9ca3af',marginTop:4}}>Enter a full date to add this person to the shared family calendar every year, or just a year if that's all you know.</p>
           </div>
           <div><label style={lbl}>Gender</label><select value={form.gender} onChange={e=>setForm(f=>({...f,gender:e.target.value}))} style={inp}><option value="m">Male</option><option value="f">Female</option><option value="o">Other</option></select></div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
