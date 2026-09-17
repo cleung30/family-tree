@@ -10,7 +10,7 @@ async function resizeImage(file,maxDim=800,quality=0.85){
   return new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality))
 }
 export default function PersonModal({person,people,relationships,onSave,onClose,onUploadPhoto,onDeletePhoto,onRelationshipSave,onRelationshipDelete}){
-  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',birth_year:'',death_year:'',gender:'m',email:'',phone:'',address:'',notes:'',photo_url:''})
+  const [form,setForm]=useState({first_name:'',last_name:'',chinese_name:'',chinese_name_lang:'yue',birth_date:'',birth_year:'',death_year:'',gender:'m',email:'',phone:'',address:'',notes:'',photo_url:''})
   const [relType,setRelType]=useState('parent')
   const [relTarget,setRelTarget]=useState('')
   const [saving,setSaving]=useState(false)
@@ -24,7 +24,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   // is left alone here — App only deletes that one once a save confirms
   // it's no longer referenced.
   const pendingPhotoUrlRef=useRef(null)
-  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',email:person.email||'',phone:person.phone||'',address:person.address||'',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
+  useEffect(()=>{if(person)setForm({first_name:person.first_name||'',last_name:person.last_name||'',chinese_name:person.chinese_name||'',chinese_name_lang:person.chinese_name_lang||'yue',birth_date:person.birth_date||'',birth_year:person.birth_year||'',death_year:person.death_year||'',gender:person.gender||'m',email:person.email||'',phone:person.phone||'',address:person.address||'',notes:person.notes||'',photo_url:person.photo_url||''})},[person])
   const myRels=person?relationships.filter(r=>r.person1_id===person.id||r.person2_id===person.id):[]
   const others=people.filter(p=>p.id!==person?.id)
   const isDuplicate=!person&&form.first_name.trim()&&people.some(p=>
@@ -56,7 +56,7 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
   const handleSave=async()=>{
     if(!form.first_name.trim())return setFormError('First name is required')
     setFormError('');setSaving(true)
-    await onSave({...form,birth_year:form.birth_year?Number(form.birth_year):null,death_year:form.death_year?Number(form.death_year):null})
+    await onSave({...form,birth_date:form.birth_date||null,birth_year:form.birth_year?Number(form.birth_year):null,death_year:form.death_year?Number(form.death_year):null})
     setSaving(false)
   }
   const addRel=async()=>{
@@ -112,6 +112,14 @@ export default function PersonModal({person,people,relationships,onSave,onClose,
                 <option value="cmn">Mandarin</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label style={lbl}>Birthday</label>
+            <input type="date" value={form.birth_date} onChange={e=>{
+              const v=e.target.value
+              setForm(f=>({...f,birth_date:v,birth_year:v?String(Number(v.slice(0,4))):f.birth_year}))
+            }} style={inp}/>
+            <p style={{fontSize:11,color:'#9ca3af',marginTop:4}}>Adds this person to the shared family calendar every year. If you only know the year, leave this blank and use Birth Year below.</p>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
             <div><label style={lbl}>Birth Year</label><input type="number" value={form.birth_year} onChange={e=>setForm(f=>({...f,birth_year:e.target.value}))} style={inp}/></div>

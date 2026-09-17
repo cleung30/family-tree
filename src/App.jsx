@@ -406,6 +406,7 @@ export default function App() {
         <CalendarModal
           session={session}
           isEditor={isEditor}
+          people={people}
           onSignIn={() => { setCalendarOpen(false); openAuth() }}
           onClose={() => setCalendarOpen(false)}
         />
