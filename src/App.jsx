@@ -5,6 +5,8 @@ import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 import CalendarModal from './components/CalendarModal'
 import GroupsModal from './components/GroupsModal'
+import InviteModal from './components/InviteModal'
+import AccessRequestsModal from './components/AccessRequestsModal'
 import LandingPage from './components/LandingPage'
 import ClaimProfile from './components/ClaimProfile'
 import { isVietnameseName, OTHER_NAME_LANGUAGES } from './lib/nameLanguage'
@@ -65,6 +67,8 @@ export default function App() {
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [calendarGroup, setCalendarGroup] = useState(null)
   const [groupsOpen, setGroupsOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [accessRequestsOpen, setAccessRequestsOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
@@ -319,8 +323,10 @@ export default function App() {
                 <ExportMenuItem label="称谓 Family Terms" onClick={() => { setTermsOpen(true); setMoreOpen(false) }} />
                 <ExportMenuItem label="📅 Family Calendar" onClick={() => { setCalendarGroup(null); setCalendarOpen(true); setMoreOpen(false) }} />
                 <ExportMenuItem label="👪 Family Groups" onClick={() => { setGroupsOpen(true); setMoreOpen(false) }} />
+                <ExportMenuItem label="➕ Invite a Family Member" onClick={() => { setInviteOpen(true); setMoreOpen(false) }} />
                 {isEditor && <ExportMenuItem label="+ Add Member" onClick={() => { setSelected(null); setModalMode('add'); setMoreOpen(false) }} />}
                 {isAdmin && <ExportMenuItem label="👥 Manage Editors" onClick={() => { openEditors(); setMoreOpen(false) }} />}
+                {isAdmin && <ExportMenuItem label="🔑 Access Requests" onClick={() => { setAccessRequestsOpen(true); setMoreOpen(false) }} />}
                 <ExportMenuItem label={`${isEditor?'✓ ':''}${session.user.email}`} hint="Signed in · tap to sign out" last onClick={() => { signOut(); setMoreOpen(false) }} />
               </div>
             )}
@@ -330,8 +336,10 @@ export default function App() {
             <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
             <button onClick={() => { setCalendarGroup(null); setCalendarOpen(true) }} title="View and add family events" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>📅 Calendar</button>
             <button onClick={() => setGroupsOpen(true)} title="Manage private family groups" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👪 Groups</button>
+            <button onClick={() => setInviteOpen(true)} title="Invite a family member to sign in" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>➕ Invite</button>
             {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
             {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
+            {isAdmin && <button onClick={() => setAccessRequestsOpen(true)} title="Review pending access requests" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>🔑 Requests</button>}
             <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
           </>
         )}
@@ -416,6 +424,12 @@ export default function App() {
           onOpenGroupCalendar={group => { setCalendarGroup(group); setGroupsOpen(false); setCalendarOpen(true) }}
           onClose={() => setGroupsOpen(false)}
         />
+      )}
+      {inviteOpen && (
+        <InviteModal session={session} onClose={() => setInviteOpen(false)} />
+      )}
+      {accessRequestsOpen && (
+        <AccessRequestsModal session={session} onClose={() => setAccessRequestsOpen(false)} />
       )}
       {editorsOpen && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && setEditorsOpen(false)}>
