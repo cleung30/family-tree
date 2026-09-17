@@ -4,6 +4,7 @@ import FamilyTree, { speak, exportTreeAsPng, exportTreeAsDataUrl } from './compo
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
 import CalendarModal from './components/CalendarModal'
+import GroupsModal from './components/GroupsModal'
 import LandingPage from './components/LandingPage'
 import ClaimProfile from './components/ClaimProfile'
 import { isVietnameseName, OTHER_NAME_LANGUAGES } from './lib/nameLanguage'
@@ -35,6 +36,8 @@ function downloadText(content, filename, mime) {
 export default function App() {
   const [people, setPeople] = useState([])
   const [relationships, setRelationships] = useState([])
+  const [groups, setGroups] = useState([])
+  const [groupMembers, setGroupMembers] = useState([])
   const [selected, setSelected] = useState(null)
   const [modalMode, setModalMode] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -60,6 +63,8 @@ export default function App() {
   const [showLanding, setShowLanding] = useState(true)
   const [termsOpen, setTermsOpen] = useState(false)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [calendarGroup, setCalendarGroup] = useState(null)
+  const [groupsOpen, setGroupsOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
@@ -150,14 +155,35 @@ export default function App() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: p, error: pe }, { data: r, error: re }] = await Promise.all([
+    const [{ data: p, error: pe }, { data: r, error: re }, { data: g, error: ge }, { data: gm, error: gme }] = await Promise.all([
       supabase.from('people').select('*').order('id'),
       supabase.from('relationships').select('*'),
+      supabase.from('groups').select('*'),
+      supabase.from('group_members').select('*'),
     ])
-    if (pe || re) { setError((pe || re).message); setLoading(false); return }
+    const err = pe || re || ge || gme
+    if (err) { setError(err.message); setLoading(false); return }
     setPeople(p || [])
     setRelationships(r || [])
+    setGroups(g || [])
+    setGroupMembers(gm || [])
     setLoading(false)
+  }, [])
+
+  // A lighter refresh for group membership changes made from within the
+  // already-open Groups modal — reusing the full load() above would flip
+  // `loading` and unmount the whole app (Groups modal included) behind
+  // the full-screen "Loading family tree…" interstitial for what should
+  // be a quiet background update.
+  const reloadGroups = useCallback(async () => {
+    const [{ data: g, error: ge }, { data: gm, error: gme }] = await Promise.all([
+      supabase.from('groups').select('*'),
+      supabase.from('group_members').select('*'),
+    ])
+    const err = ge || gme
+    if (err) return setErrorMsg(err.message)
+    setGroups(g || [])
+    setGroupMembers(gm || [])
   }, [])
 
   useEffect(() => { if (session) load() }, [session, load])
@@ -291,7 +317,8 @@ export default function App() {
             {moreOpen && (
               <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,background:'#fff',borderRadius:6,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',overflow:'hidden',zIndex:20,minWidth:220,maxWidth:'calc(100vw - 32px)'}}>
                 <ExportMenuItem label="称谓 Family Terms" onClick={() => { setTermsOpen(true); setMoreOpen(false) }} />
-                <ExportMenuItem label="📅 Family Calendar" onClick={() => { setCalendarOpen(true); setMoreOpen(false) }} />
+                <ExportMenuItem label="📅 Family Calendar" onClick={() => { setCalendarGroup(null); setCalendarOpen(true); setMoreOpen(false) }} />
+                <ExportMenuItem label="👪 Family Groups" onClick={() => { setGroupsOpen(true); setMoreOpen(false) }} />
                 {isEditor && <ExportMenuItem label="+ Add Member" onClick={() => { setSelected(null); setModalMode('add'); setMoreOpen(false) }} />}
                 {isAdmin && <ExportMenuItem label="👥 Manage Editors" onClick={() => { openEditors(); setMoreOpen(false) }} />}
                 <ExportMenuItem label={`${isEditor?'✓ ':''}${session.user.email}`} hint="Signed in · tap to sign out" last onClick={() => { signOut(); setMoreOpen(false) }} />
@@ -301,7 +328,8 @@ export default function App() {
         ) : (
           <>
             <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
-            <button onClick={() => setCalendarOpen(true)} title="View and add family events" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>📅 Calendar</button>
+            <button onClick={() => { setCalendarGroup(null); setCalendarOpen(true) }} title="View and add family events" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>📅 Calendar</button>
+            <button onClick={() => setGroupsOpen(true)} title="Manage private family groups" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👪 Groups</button>
             {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
             {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
             <button onClick={signOut} title={isEditor ? `Signed in as ${session.user.email}` : `Signed in as ${session.user.email} (view only)`} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>{isEditor?'✓ ':''}{session.user.email} · Sign out</button>
@@ -371,7 +399,22 @@ export default function App() {
           session={session}
           isEditor={isEditor}
           people={people}
-          onClose={() => setCalendarOpen(false)}
+          groups={groups}
+          groupMembers={groupMembers}
+          groupFilter={calendarGroup}
+          onClose={() => { setCalendarOpen(false); setCalendarGroup(null) }}
+        />
+      )}
+      {groupsOpen && (
+        <GroupsModal
+          people={people}
+          groups={groups}
+          groupMembers={groupMembers}
+          session={session}
+          isEditor={isEditor}
+          onChanged={reloadGroups}
+          onOpenGroupCalendar={group => { setCalendarGroup(group); setGroupsOpen(false); setCalendarOpen(true) }}
+          onClose={() => setGroupsOpen(false)}
         />
       )}
       {editorsOpen && (
