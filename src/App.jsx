@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import FamilyTree, { speak, exportTreeAsPng, exportTreeAsDataUrl } from './components/FamilyTree'
 import PersonModal from './components/PersonModal'
 import FamilyTermsModal from './components/FamilyTermsModal'
+import CalendarModal from './components/CalendarModal'
 import LandingPage from './components/LandingPage'
 import { isVietnameseName } from './lib/nameLanguage'
 import { peopleToCsv } from './lib/csvExport'
@@ -61,6 +62,7 @@ export default function App() {
   const [removingEditorEmail, setRemovingEditorEmail] = useState(null)
   const [showLanding, setShowLanding] = useState(true)
   const [termsOpen, setTermsOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 640px)').matches)
@@ -292,6 +294,7 @@ export default function App() {
             {moreOpen && (
               <div style={{position:'absolute',top:'calc(100% + 4px)',left:0,background:'#fff',borderRadius:6,boxShadow:'0 4px 12px rgba(0,0,0,0.2)',overflow:'hidden',zIndex:20,minWidth:220,maxWidth:'calc(100vw - 32px)'}}>
                 <ExportMenuItem label="称谓 Family Terms" onClick={() => { setTermsOpen(true); setMoreOpen(false) }} />
+                <ExportMenuItem label="📅 Family Calendar" onClick={() => { setCalendarOpen(true); setMoreOpen(false) }} />
                 {isEditor && <ExportMenuItem label="+ Add Member" onClick={() => { setSelected(null); setModalMode('add'); setMoreOpen(false) }} />}
                 {isAdmin && <ExportMenuItem label="👥 Manage Editors" onClick={() => { openEditors(); setMoreOpen(false) }} />}
                 {session ? (
@@ -305,6 +308,7 @@ export default function App() {
         ) : (
           <>
             <button onClick={() => setTermsOpen(true)} title="Look up what to call each relative" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>称谓 Family Terms</button>
+            <button onClick={() => setCalendarOpen(true)} title="View and add family events" style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>📅 Calendar</button>
             {isEditor && <button onClick={() => { setSelected(null); setModalMode('add') }} style={{...btn,background:'#fff',color:'#4a0404',flexShrink:0}}>+ Add Member</button>}
             {isAdmin && <button onClick={openEditors} style={{...btn,background:'#7a2e2e',color:'#fff',flexShrink:0}}>👥 Manage Editors</button>}
             {session ? (
@@ -398,6 +402,14 @@ export default function App() {
         </div>
       )}
       {termsOpen && <FamilyTermsModal people={people} relationships={relationships} onClose={() => setTermsOpen(false)} />}
+      {calendarOpen && (
+        <CalendarModal
+          session={session}
+          isEditor={isEditor}
+          onSignIn={() => { setCalendarOpen(false); openAuth() }}
+          onClose={() => setCalendarOpen(false)}
+        />
+      )}
       {editorsOpen && (
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}} onClick={e => e.target===e.currentTarget && setEditorsOpen(false)}>
           <div style={{background:'#fff',borderRadius:12,width:'min(420px, 90vw)',maxHeight:'85vh',overflowY:'auto',padding:24,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
